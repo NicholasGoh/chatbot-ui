@@ -140,7 +140,7 @@ const Home: React.FC<HomeProps> = ({
       const controller = new AbortController();
 
       // handle self managed backend
-      debugger;
+      // debugger;
       let mybody = JSON.stringify({
         query: chatBody.messages[chatBody.messages.length - 1].content
       })
