@@ -148,10 +148,24 @@ const Home: React.FC<HomeProps> = ({
       // websocket to stream response
       const socket = new WebSocket('ws://localhost/api/stream');
       let partial = '';
+
       socket.onopen = () => {
         console.log('WebSocket connection established.');
         // Send data after the connection is open, if needed
         socket.send(mybody);
+
+        const myUpdatedMessages: Message[] = [
+          ...updatedConversation.messages,
+          { role: 'assistant', content: JSON.parse(mybody).query },
+        ];
+
+        updatedConversation = {
+          ...updatedConversation,
+          messages: myUpdatedMessages,
+        };
+
+        // setSelectedConversation(updatedConversation);
+        // saveConversation(updatedConversation);
       };
 
       socket.onmessage = (event) => {
@@ -163,14 +177,16 @@ const Home: React.FC<HomeProps> = ({
           socket.close();
         }
 
-        partial += eventData.data;
+        if (typeof eventData.data === "string") {
+          partial += eventData.data;
+        }
 
         const myUpdatedMessages: Message[] = updatedConversation.messages.map(
           (message, index) => {
             if (index === updatedConversation.messages.length - 1) {
               return {
                 ...message,
-                content: partial,
+                content: partial.trim(),
               };
             }
 
@@ -195,110 +211,110 @@ const Home: React.FC<HomeProps> = ({
         console.error('WebSocket error:', error);
       };
 
-      const response = await fetch('/api/complete', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        signal: controller.signal,
-        body: mybody
-      });
+      // const response = await fetch('/api/complete', {
+      //   method: 'POST',
+      //   headers: {
+      //     'Content-Type': 'application/json',
+      //   },
+      //   signal: controller.signal,
+      //   body: mybody
+      // });
 
-      if (!response.ok) {
+      // if (!response.ok) {
+      //   setLoading(false);
+      //   setMessageIsStreaming(false);
+      //   toast.error(response.statusText);
+      //   return;
+      // }
+
+      // const data = response.body;
+
+      // if (!data) {
+      //   setLoading(false);
+      //   setMessageIsStreaming(false);
+      //   return;
+      // }
+
+      // if (!plugin) {
+      //   if (updatedConversation.messages.length === 1) {
+      //     const { content } = message;
+      //     const customName =
+      //       content.length > 30 ? content.substring(0, 30) + '...' : content;
+
+      //     updatedConversation = {
+      //       ...updatedConversation,
+      //       name: customName,
+      //     };
+      //   }
+      if (true) {
         setLoading(false);
-        setMessageIsStreaming(false);
-        toast.error(response.statusText);
-        return;
-      }
 
-      const data = response.body;
+        // const reader = data.getReader();
+        // const decoder = new TextDecoder();
+        // let done = false;
+        // let isFirst = true;
+        // let text = '';
 
-      if (!data) {
-        setLoading(false);
-        setMessageIsStreaming(false);
-        return;
-      }
+        // while (!done) {
+        //   if (stopConversationRef.current === true) {
+        //     controller.abort();
+        //     done = true;
+        //     break;
+        //   }
+        //   const { value, done: doneReading } = await reader.read();
+        //   done = doneReading;
+        //   const chunkValue = decoder.decode(value);
 
-      if (!plugin) {
-        if (updatedConversation.messages.length === 1) {
-          const { content } = message;
-          const customName =
-            content.length > 30 ? content.substring(0, 30) + '...' : content;
+        //   // handle self managed backend
+        //   // debugger;
+        //   let parsedChunk
+        //   try {
+        //     parsedChunk = JSON.parse(chunkValue);
+        //   } catch (error) {
+        //     console.error("Error parsing JSON:", error, chunkValue);
+        //     parsedChunk = {};
+        //   }
+        //   if (parsedChunk.completion){
+        //     text += parsedChunk.completion
+        //   };
 
-          updatedConversation = {
-            ...updatedConversation,
-            name: customName,
-          };
-        }
+        //   if (isFirst) {
+        //     isFirst = false;
+        //     const updatedMessages: Message[] = [
+        //       ...updatedConversation.messages,
+        //       { role: 'assistant', content: chunkValue },
+        //     ];
 
-        setLoading(false);
+        //     updatedConversation = {
+        //       ...updatedConversation,
+        //       messages: updatedMessages,
+        //     };
 
-        const reader = data.getReader();
-        const decoder = new TextDecoder();
-        let done = false;
-        let isFirst = true;
-        let text = '';
+        //     setSelectedConversation(updatedConversation);
+        //   } else {
+        //     const updatedMessages: Message[] = updatedConversation.messages.map(
+        //       (message, index) => {
+        //         if (index === updatedConversation.messages.length - 1) {
+        //           return {
+        //             ...message,
+        //             content: text,
+        //           };
+        //         }
 
-        while (!done) {
-          if (stopConversationRef.current === true) {
-            controller.abort();
-            done = true;
-            break;
-          }
-          const { value, done: doneReading } = await reader.read();
-          done = doneReading;
-          const chunkValue = decoder.decode(value);
+        //         return message;
+        //       },
+        //     );
 
-          // handle self managed backend
-          // debugger;
-          let parsedChunk
-          try {
-            parsedChunk = JSON.parse(chunkValue);
-          } catch (error) {
-            console.error("Error parsing JSON:", error, chunkValue);
-            parsedChunk = {};
-          }
-          if (parsedChunk.completion){
-            text += parsedChunk.completion
-          };
+        //     updatedConversation = {
+        //       ...updatedConversation,
+        //       messages: updatedMessages,
+        //     };
 
-          if (isFirst) {
-            isFirst = false;
-            const updatedMessages: Message[] = [
-              ...updatedConversation.messages,
-              { role: 'assistant', content: chunkValue },
-            ];
+        //     setSelectedConversation(updatedConversation);
+        //   }
+        // }
 
-            updatedConversation = {
-              ...updatedConversation,
-              messages: updatedMessages,
-            };
-
-            setSelectedConversation(updatedConversation);
-          } else {
-            const updatedMessages: Message[] = updatedConversation.messages.map(
-              (message, index) => {
-                if (index === updatedConversation.messages.length - 1) {
-                  return {
-                    ...message,
-                    content: text,
-                  };
-                }
-
-                return message;
-              },
-            );
-
-            updatedConversation = {
-              ...updatedConversation,
-              messages: updatedMessages,
-            };
-
-            setSelectedConversation(updatedConversation);
-          }
-        }
-
-        saveConversation(updatedConversation);
+        // saveConversation(updatedConversation);
 
         const updatedConversations: Conversation[] = conversations.map(
           (conversation) => {
@@ -319,37 +335,37 @@ const Home: React.FC<HomeProps> = ({
 
         setMessageIsStreaming(false);
       } else {
-        const { answer } = await response.json();
+        // const { answer } = await response.json();
 
-        const updatedMessages: Message[] = [
-          ...updatedConversation.messages,
-          { role: 'assistant', content: answer },
-        ];
+        // const updatedMessages: Message[] = [
+        //   ...updatedConversation.messages,
+        //   { role: 'assistant', content: answer },
+        // ];
 
-        updatedConversation = {
-          ...updatedConversation,
-          messages: updatedMessages,
-        };
+        // updatedConversation = {
+        //   ...updatedConversation,
+        //   messages: updatedMessages,
+        // };
 
-        setSelectedConversation(updatedConversation);
-        saveConversation(updatedConversation);
+        // setSelectedConversation(updatedConversation);
+        // saveConversation(updatedConversation);
 
-        const updatedConversations: Conversation[] = conversations.map(
-          (conversation) => {
-            if (conversation.id === selectedConversation.id) {
-              return updatedConversation;
-            }
+        // const updatedConversations: Conversation[] = conversations.map(
+        //   (conversation) => {
+        //     if (conversation.id === selectedConversation.id) {
+        //       return updatedConversation;
+        //     }
 
-            return conversation;
-          },
-        );
+        //     return conversation;
+        //   },
+        // );
 
-        if (updatedConversations.length === 0) {
-          updatedConversations.push(updatedConversation);
-        }
+        // if (updatedConversations.length === 0) {
+        //   updatedConversations.push(updatedConversation);
+        // }
 
-        setConversations(updatedConversations);
-        saveConversations(updatedConversations);
+        // setConversations(updatedConversations);
+        // saveConversations(updatedConversations);
 
         setLoading(false);
         setMessageIsStreaming(false);
