@@ -39,6 +39,7 @@ import Head from 'next/head';
 import { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { v4 as uuidv4 } from 'uuid';
+import { setMaxIdleHTTPParsers } from 'http';
 
 interface HomeProps {
   serverSideApiKeyIsSet: boolean;
@@ -140,12 +141,61 @@ const Home: React.FC<HomeProps> = ({
 
       // handle self managed backend
       debugger;
-      let mybody;
-      mybody = JSON.stringify({
+      let mybody = JSON.stringify({
         query: chatBody.messages[chatBody.messages.length - 1].content
       })
 
-      const response = await fetch('api/complete', {
+      // websocket to stream response
+      const socket = new WebSocket('ws://localhost/api/stream');
+      let partial = '';
+      socket.onopen = () => {
+        console.log('WebSocket connection established.');
+        // Send data after the connection is open, if needed
+        socket.send(mybody);
+      };
+
+      socket.onmessage = (event) => {
+        // Handle incoming messages from the server
+        const eventData = JSON.parse(event.data);
+        console.log(eventData.data);
+
+        if (eventData.status == "end") {
+          socket.close();
+        }
+
+        partial += eventData.data;
+
+        const myUpdatedMessages: Message[] = updatedConversation.messages.map(
+          (message, index) => {
+            if (index === updatedConversation.messages.length - 1) {
+              return {
+                ...message,
+                content: partial,
+              };
+            }
+
+            return message;
+          },
+        );
+
+        updatedConversation = {
+          ...updatedConversation,
+          messages: myUpdatedMessages,
+        };
+
+        setSelectedConversation(updatedConversation);
+        saveConversation(updatedConversation);
+      };
+
+      socket.onclose = () => {
+        console.log('WebSocket connection closed.');
+      };
+
+      socket.onerror = (error) => {
+        console.error('WebSocket error:', error);
+      };
+
+      const response = await fetch('/api/complete', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -656,6 +706,7 @@ const Home: React.FC<HomeProps> = ({
 
   useEffect(() => {
     if (currentMessage) {
+      console.log("currentMessage: ", currentMessage);
       handleSend(currentMessage);
       setCurrentMessage(undefined);
     }
