@@ -1,3 +1,5 @@
+import axios from 'axios';
+
 import { Chat } from '@/components/Chat/Chat';
 import { Chatbar } from '@/components/Chatbar/Chatbar';
 import { Navbar } from '@/components/Mobile/Navbar';
@@ -135,13 +137,21 @@ const Home: React.FC<HomeProps> = ({
       }
 
       const controller = new AbortController();
-      const response = await fetch(endpoint, {
+
+      // handle self managed backend
+      debugger;
+      let mybody;
+      mybody = JSON.stringify({
+        query: chatBody.messages[chatBody.messages.length - 1].content
+      })
+
+      const response = await fetch('api/complete', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         signal: controller.signal,
-        body,
+        body: mybody
       });
 
       if (!response.ok) {
@@ -189,7 +199,18 @@ const Home: React.FC<HomeProps> = ({
           done = doneReading;
           const chunkValue = decoder.decode(value);
 
-          text += chunkValue;
+          // handle self managed backend
+          // debugger;
+          let parsedChunk
+          try {
+            parsedChunk = JSON.parse(chunkValue);
+          } catch (error) {
+            console.error("Error parsing JSON:", error, chunkValue);
+            parsedChunk = {};
+          }
+          if (parsedChunk.completion){
+            text += parsedChunk.completion
+          };
 
           if (isFirst) {
             isFirst = false;
@@ -310,27 +331,27 @@ const Home: React.FC<HomeProps> = ({
       }),
     });
 
-    if (!response.ok) {
-      try {
-        const data = await response.json();
-        Object.assign(error, {
-          code: data.error?.code,
-          messageLines: [data.error?.message],
-        });
-      } catch (e) {}
-      setModelError(error);
-      return;
-    }
+    // if (!response.ok) {
+    //   try {
+    //     const data = await response.json();
+    //     Object.assign(error, {
+    //       code: data.error?.code,
+    //       messageLines: [data.error?.message],
+    //     });
+    //   } catch (e) {}
+    //   setModelError(error);
+    //   return;
+    // }
 
-    const data = await response.json();
+    // const data = await response.json();
 
-    if (!data) {
-      setModelError(error);
-      return;
-    }
+    // if (!data) {
+    //   setModelError(error);
+    //   return;
+    // }
 
-    setModels(data);
-    setModelError(null);
+    // setModels(data);
+    // setModelError(null);
   };
 
   // BASIC HANDLERS --------------------------------------------
