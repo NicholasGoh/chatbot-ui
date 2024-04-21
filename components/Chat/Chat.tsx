@@ -207,13 +207,14 @@ export const Chat: FC<Props> = memo(
                 <>
                   <div className="mx-auto flex w-[350px] flex-col space-y-10 pt-12 sm:w-[600px]">
                     <div className="text-center text-3xl font-semibold text-gray-800 dark:text-gray-100">
-                      {models.length === 0 ? (
+                      {/* {models.length === 0 ? (
                         <div>
                           <Spinner size="16px" className="mx-auto" />
                         </div>
                       ) : (
                         'Chatbot UI'
-                      )}
+                      )} */
+                      'Chatbot UI'}
                     </div>
 
                     {models.length > 0 && (

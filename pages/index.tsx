@@ -110,7 +110,7 @@ const Home: React.FC<HomeProps> = ({
       }
 
       setSelectedConversation(updatedConversation);
-      setLoading(true);
+      setLoading(false);
       setMessageIsStreaming(true);
 
       const chatBody: ChatBody = {
@@ -247,7 +247,6 @@ const Home: React.FC<HomeProps> = ({
       //     };
       //   }
       if (true) {
-        setLoading(false);
 
         // const reader = data.getReader();
         // const decoder = new TextDecoder();
@@ -417,7 +416,7 @@ const Home: React.FC<HomeProps> = ({
     // }
 
     // setModels(data);
-    // setModelError(null);
+    setModelError(null);
   };
 
   // BASIC HANDLERS --------------------------------------------
@@ -722,7 +721,6 @@ const Home: React.FC<HomeProps> = ({
 
   useEffect(() => {
     if (currentMessage) {
-      console.log("currentMessage: ", currentMessage);
       handleSend(currentMessage);
       setCurrentMessage(undefined);
     }
