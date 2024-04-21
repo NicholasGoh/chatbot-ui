@@ -146,7 +146,10 @@ const Home: React.FC<HomeProps> = ({
       })
 
       // websocket to stream response
-      const socket = new WebSocket('ws://localhost/api/stream');
+      // const socket = new WebSocket('ws://localhost/api/stream');
+      const hostname = window.location.hostname;
+      const socketURL = 'wss://' + hostname + '/api/stream';
+      const socket = new WebSocket(socketURL); // ngrok
       let partial = '';
 
       socket.onopen = () => {
