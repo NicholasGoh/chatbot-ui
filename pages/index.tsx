@@ -110,7 +110,7 @@ const Home: React.FC<HomeProps> = ({
       }
 
       setSelectedConversation(updatedConversation);
-      setLoading(false);
+      setLoading(true);
       setMessageIsStreaming(true);
 
       const chatBody: ChatBody = {
@@ -171,9 +171,9 @@ const Home: React.FC<HomeProps> = ({
       };
 
       socket.onmessage = (event) => {
+        setLoading(false);
         // Handle incoming messages from the server
         const eventData = JSON.parse(event.data);
-        console.log(eventData.data);
 
         if (eventData.status == "end") {
           socket.close();
