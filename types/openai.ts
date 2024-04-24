@@ -17,7 +17,7 @@ export const OpenAIModels: Record<OpenAIModelID, OpenAIModel> = {
   [OpenAIModelID.GPT_3_5]: {
     id: OpenAIModelID.GPT_3_5,
     // name: 'GPT-3.5',
-    name: 'Llama 2 13B Chat',
+    name: 'Mixtral 8x7B Instruct v0.1 Q2_K',
     maxLength: 12000,
     tokenLimit: 4000,
   },
