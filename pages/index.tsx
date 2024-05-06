@@ -1,4 +1,4 @@
-import axios from 'axios';
+// import axios from 'axios';
 
 import { Chat } from '@/components/Chat/Chat';
 import { Chatbar } from '@/components/Chatbar/Chatbar';
@@ -36,9 +36,9 @@ import { useTranslation } from 'next-i18next';
 import { serverSideTranslations } from 'next-i18next/serverSideTranslations';
 import Head from 'next/head';
 import { useEffect, useRef, useState } from 'react';
-import toast from 'react-hot-toast';
+// import toast from 'react-hot-toast';
 import { v4 as uuidv4 } from 'uuid';
-import { setMaxIdleHTTPParsers } from 'http';
+// import { setMaxIdleHTTPParsers } from 'http';
 
 interface HomeProps {
   serverSideApiKeyIsSet: boolean;
