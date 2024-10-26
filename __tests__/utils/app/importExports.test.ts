@@ -105,7 +105,7 @@ describe('cleanData Functions', () => {
           },
         ],
         folders: [],
-        prompts:[]
+        prompts: [],
       });
     });
   });
@@ -212,7 +212,7 @@ describe('cleanData Functions', () => {
           },
         ],
       } as ExportFormatV4;
-      
+
       const obj = cleanData(data);
       expect(isLatestExportFormat(obj)).toBe(true);
       expect(obj).toEqual({
@@ -253,9 +253,7 @@ describe('cleanData Functions', () => {
             folderId: null,
           },
         ],
-
       });
     });
   });
-  
 });

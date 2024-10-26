@@ -19,7 +19,7 @@ export interface OnPremModel {
 
 export enum OnPremModelID {
   MIXTRAL_8x7B_SMALL = 'mixtral-8x7b-instruct-v0.1.Q2_K.gguf',
-  MIXTRAL_8x7B_BIG = 'mixtral-8x7b-instruct-v0.1.Q5_K_M.gguf'
+  MIXTRAL_8x7B_BIG = 'mixtral-8x7b-instruct-v0.1.Q5_K_M.gguf',
 }
 // in case the `DEFAULT_MODEL` environment variable is not set or set to an unsupported model
 export const fallbackModelID = OnPremModelID.MIXTRAL_8x7B_SMALL;

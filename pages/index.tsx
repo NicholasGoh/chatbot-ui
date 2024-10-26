@@ -141,13 +141,15 @@ const Home: React.FC<HomeProps> = ({
       // handle self managed backend
       // debugger;
       let mybody = JSON.stringify({
-        query: chatBody.messages[chatBody.messages.length - 1].content
-      })
+        query: chatBody.messages[chatBody.messages.length - 1].content,
+      });
 
       // websocket to stream response
       let protocol = 'ws';
       protocol += window.location.protocol.includes('s') ? 's' : '';
-      const socket = new WebSocket(`${protocol}://${window.location.hostname}/api/stream`);
+      const socket = new WebSocket(
+        `${protocol}://${window.location.hostname}/api/stream`,
+      );
       let partial = '';
 
       socket.onopen = () => {
@@ -174,11 +176,11 @@ const Home: React.FC<HomeProps> = ({
         // Handle incoming messages from the server
         const eventData = JSON.parse(event.data);
 
-        if (eventData.status == "end") {
+        if (eventData.status == 'end') {
           socket.close();
         }
 
-        if (typeof eventData.data === "string") {
+        if (typeof eventData.data === 'string') {
           partial += eventData.data;
         }
 
@@ -248,7 +250,6 @@ const Home: React.FC<HomeProps> = ({
       //     };
       //   }
       if (true) {
-
         // const reader = data.getReader();
         // const decoder = new TextDecoder();
         // let done = false;
