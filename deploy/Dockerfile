@@ -1,19 +1,13 @@
-# ---- Base Node ----
-FROM node:19-alpine AS base
+FROM node:19-alpine AS dev
+RUN apk add curl
 WORKDIR /app
 COPY package*.json ./
-
-# ---- Dependencies ----
-FROM base AS dependencies
 RUN npm ci
+COPY ./ ./
+# RUN npm run build
+CMD ["npm", "run", "dev"]
 
-# ---- Build ----
-FROM dependencies AS build
-COPY . .
-RUN npm run build
-
-# ---- Production ----
-FROM node:19-alpine AS production
+FROM nginx:1.21.6-alpine AS production
 WORKDIR /app
 COPY --from=dependencies /app/node_modules ./node_modules
 COPY --from=build /app/.next ./.next
