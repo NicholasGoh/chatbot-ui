@@ -25,16 +25,10 @@ interface Props {
 
 export const ChatbarSettings: FC<Props> = ({
   lightMode,
-  apiKey,
-  pluginKeys,
   conversationsCount,
   onToggleLightMode,
-  onApiKeyChange,
   onClearConversations,
   onExportConversations,
-  onImportConversations,
-  onPluginKeyChange,
-  onClearPluginKey,
 }) => {
   const { t } = useTranslation('sidebar');
 
@@ -43,8 +37,6 @@ export const ChatbarSettings: FC<Props> = ({
       {conversationsCount > 0 ? (
         <ClearConversations onClearConversations={onClearConversations} />
       ) : null}
-
-      <Import onImport={onImportConversations} />
 
       <SidebarButton
         text={t('Export data')}
@@ -60,14 +52,6 @@ export const ChatbarSettings: FC<Props> = ({
         onClick={() =>
           onToggleLightMode(lightMode === 'light' ? 'dark' : 'light')
         }
-      />
-
-      <Key apiKey={apiKey} onApiKeyChange={onApiKeyChange} />
-
-      <PluginKeys
-        pluginKeys={pluginKeys}
-        onPluginKeyChange={onPluginKeyChange}
-        onClearPluginKey={onClearPluginKey}
       />
     </div>
   );
