@@ -138,17 +138,15 @@ const Home: React.FC<HomeProps> = ({
       );
       setLoading(false);
 
+      eventSource.addEventListener('error', function (event) {});
 
-      eventSource.addEventListener("error", function (event) {
-      });
-
-      eventSource.addEventListener("on_chat_model_stream", function (event) {
+      eventSource.addEventListener('on_chat_model_stream', function (event) {
         const chunkValue = event.data;
       });
 
-      eventSource.addEventListener("on_chat_model_end", function (event) {
-        console.log(event.data)
-        console.log(updatedConversation)
+      eventSource.addEventListener('on_chat_model_end', function (event) {
+        console.log(event.data);
+        console.log(updatedConversation);
 
         const updatedMessages: Message[] = [
           ...updatedConversation.messages,
@@ -175,9 +173,9 @@ const Home: React.FC<HomeProps> = ({
         if (updatedConversations.length === 0) {
           updatedConversations.push(updatedConversation);
         }
-        setConversations(updatedConversations)
-        saveConversations(updatedConversations)
-        console.log(updatedConversation)
+        setConversations(updatedConversations);
+        saveConversations(updatedConversations);
+        console.log(updatedConversation);
 
         eventSource.close();
       });
