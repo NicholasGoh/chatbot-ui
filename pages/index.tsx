@@ -1,5 +1,3 @@
-// import axios from 'axios';
-
 import { Chat } from '@/components/Chat/Chat';
 import { Chatbar } from '@/components/Chatbar/Chatbar';
 import { Navbar } from '@/components/Mobile/Navbar';
@@ -36,9 +34,8 @@ import { useTranslation } from 'next-i18next';
 import { serverSideTranslations } from 'next-i18next/serverSideTranslations';
 import Head from 'next/head';
 import { useEffect, useRef, useState } from 'react';
-// import toast from 'react-hot-toast';
+import toast from 'react-hot-toast';
 import { v4 as uuidv4 } from 'uuid';
-// import { setMaxIdleHTTPParsers } from 'http';
 
 interface HomeProps {
   serverSideApiKeyIsSet: boolean;
@@ -136,187 +133,35 @@ const Home: React.FC<HomeProps> = ({
         });
       }
 
-      const controller = new AbortController();
+      const eventSource = new EventSource(
+        `${window.location.protocol}//${window.location.host}/api/v1/completions?query=${message.content}`,
+      );
+      setLoading(false);
 
-      // handle self managed backend
-      // debugger;
-      let mybody = JSON.stringify({
-        query: chatBody.messages[chatBody.messages.length - 1].content,
+
+      eventSource.addEventListener("error", function (event) {
       });
 
-      // websocket to stream response
-      let protocol = 'ws';
-      protocol += window.location.protocol.includes('s') ? 's' : '';
-      const socket = new WebSocket(
-        `${protocol}://${window.location.hostname}/api/stream`,
-      );
-      let partial = '';
+      eventSource.addEventListener("on_chat_model_stream", function (event) {
+        const chunkValue = event.data;
+      });
 
-      socket.onopen = () => {
-        console.log('WebSocket connection established.');
-        // Send data after the connection is open, if needed
-        socket.send(mybody);
+      eventSource.addEventListener("on_chat_model_end", function (event) {
+        console.log(event.data)
+        console.log(updatedConversation)
 
-        const myUpdatedMessages: Message[] = [
+        const updatedMessages: Message[] = [
           ...updatedConversation.messages,
-          { role: 'assistant', content: JSON.parse(mybody).query },
+          { role: 'assistant', content: event.data },
         ];
 
         updatedConversation = {
           ...updatedConversation,
-          messages: myUpdatedMessages,
-        };
-
-        // setSelectedConversation(updatedConversation);
-        // saveConversation(updatedConversation);
-      };
-
-      socket.onmessage = (event) => {
-        setLoading(false);
-        // Handle incoming messages from the server
-        const eventData = JSON.parse(event.data);
-
-        if (eventData.status == 'end') {
-          socket.close();
-        }
-
-        if (typeof eventData.data === 'string') {
-          partial += eventData.data;
-        }
-
-        const myUpdatedMessages: Message[] = updatedConversation.messages.map(
-          (message, index) => {
-            if (index === updatedConversation.messages.length - 1) {
-              return {
-                ...message,
-                content: partial.trim(),
-              };
-            }
-
-            return message;
-          },
-        );
-
-        updatedConversation = {
-          ...updatedConversation,
-          messages: myUpdatedMessages,
+          messages: updatedMessages,
         };
 
         setSelectedConversation(updatedConversation);
         saveConversation(updatedConversation);
-      };
-
-      socket.onclose = () => {
-        console.log('WebSocket connection closed.');
-      };
-
-      socket.onerror = (error) => {
-        console.error('WebSocket error:', error);
-      };
-
-      // const response = await fetch('/api/complete', {
-      //   method: 'POST',
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //   },
-      //   signal: controller.signal,
-      //   body: mybody
-      // });
-
-      // if (!response.ok) {
-      //   setLoading(false);
-      //   setMessageIsStreaming(false);
-      //   toast.error(response.statusText);
-      //   return;
-      // }
-
-      // const data = response.body;
-
-      // if (!data) {
-      //   setLoading(false);
-      //   setMessageIsStreaming(false);
-      //   return;
-      // }
-
-      // if (!plugin) {
-      //   if (updatedConversation.messages.length === 1) {
-      //     const { content } = message;
-      //     const customName =
-      //       content.length > 30 ? content.substring(0, 30) + '...' : content;
-
-      //     updatedConversation = {
-      //       ...updatedConversation,
-      //       name: customName,
-      //     };
-      //   }
-      if (true) {
-        // const reader = data.getReader();
-        // const decoder = new TextDecoder();
-        // let done = false;
-        // let isFirst = true;
-        // let text = '';
-
-        // while (!done) {
-        //   if (stopConversationRef.current === true) {
-        //     controller.abort();
-        //     done = true;
-        //     break;
-        //   }
-        //   const { value, done: doneReading } = await reader.read();
-        //   done = doneReading;
-        //   const chunkValue = decoder.decode(value);
-
-        //   // handle self managed backend
-        //   // debugger;
-        //   let parsedChunk
-        //   try {
-        //     parsedChunk = JSON.parse(chunkValue);
-        //   } catch (error) {
-        //     console.error("Error parsing JSON:", error, chunkValue);
-        //     parsedChunk = {};
-        //   }
-        //   if (parsedChunk.completion){
-        //     text += parsedChunk.completion
-        //   };
-
-        //   if (isFirst) {
-        //     isFirst = false;
-        //     const updatedMessages: Message[] = [
-        //       ...updatedConversation.messages,
-        //       { role: 'assistant', content: chunkValue },
-        //     ];
-
-        //     updatedConversation = {
-        //       ...updatedConversation,
-        //       messages: updatedMessages,
-        //     };
-
-        //     setSelectedConversation(updatedConversation);
-        //   } else {
-        //     const updatedMessages: Message[] = updatedConversation.messages.map(
-        //       (message, index) => {
-        //         if (index === updatedConversation.messages.length - 1) {
-        //           return {
-        //             ...message,
-        //             content: text,
-        //           };
-        //         }
-
-        //         return message;
-        //       },
-        //     );
-
-        //     updatedConversation = {
-        //       ...updatedConversation,
-        //       messages: updatedMessages,
-        //     };
-
-        //     setSelectedConversation(updatedConversation);
-        //   }
-        // }
-
-        // saveConversation(updatedConversation);
-
         const updatedConversations: Conversation[] = conversations.map(
           (conversation) => {
             if (conversation.id === selectedConversation.id) {
@@ -330,94 +175,29 @@ const Home: React.FC<HomeProps> = ({
         if (updatedConversations.length === 0) {
           updatedConversations.push(updatedConversation);
         }
+        setConversations(updatedConversations)
+        saveConversations(updatedConversations)
+        console.log(updatedConversation)
 
-        setConversations(updatedConversations);
-        saveConversations(updatedConversations);
+        eventSource.close();
+      });
 
-        setMessageIsStreaming(false);
-      } else {
-        // const { answer } = await response.json();
+      // setConversations(updatedConversations);
+      // saveConversations(updatedConversations);
 
-        // const updatedMessages: Message[] = [
-        //   ...updatedConversation.messages,
-        //   { role: 'assistant', content: answer },
-        // ];
+      setMessageIsStreaming(false);
+    } else {
+      // setConversations(updatedConversations);
+      // saveConversations(updatedConversations);
 
-        // updatedConversation = {
-        //   ...updatedConversation,
-        //   messages: updatedMessages,
-        // };
-
-        // setSelectedConversation(updatedConversation);
-        // saveConversation(updatedConversation);
-
-        // const updatedConversations: Conversation[] = conversations.map(
-        //   (conversation) => {
-        //     if (conversation.id === selectedConversation.id) {
-        //       return updatedConversation;
-        //     }
-
-        //     return conversation;
-        //   },
-        // );
-
-        // if (updatedConversations.length === 0) {
-        //   updatedConversations.push(updatedConversation);
-        // }
-
-        // setConversations(updatedConversations);
-        // saveConversations(updatedConversations);
-
-        setLoading(false);
-        setMessageIsStreaming(false);
-      }
+      setLoading(false);
+      setMessageIsStreaming(false);
     }
   };
 
   // FETCH MODELS ----------------------------------------------
 
   const fetchModels = async (key: string) => {
-    const error = {
-      title: t('Error fetching models.'),
-      code: null,
-      messageLines: [
-        t(
-          'Make sure your OpenAI API key is set in the bottom left of the sidebar.',
-        ),
-        t('If you completed this step, OpenAI may be experiencing issues.'),
-      ],
-    } as ErrorMessage;
-
-    const response = await fetch('/api/models', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        key,
-      }),
-    });
-
-    // if (!response.ok) {
-    //   try {
-    //     const data = await response.json();
-    //     Object.assign(error, {
-    //       code: data.error?.code,
-    //       messageLines: [data.error?.message],
-    //     });
-    //   } catch (e) {}
-    //   setModelError(error);
-    //   return;
-    // }
-
-    // const data = await response.json();
-
-    // if (!data) {
-    //   setModelError(error);
-    //   return;
-    // }
-
-    // setModels(data);
     setModelError(null);
   };
 
