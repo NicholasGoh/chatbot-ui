@@ -116,38 +116,17 @@ const Home: React.FC<HomeProps> = ({
         prompt: updatedConversation.prompt,
       };
 
-      const endpoint = getEndpoint(plugin);
-      let body;
-
-      if (!plugin) {
-        body = JSON.stringify(chatBody);
-      } else {
-        body = JSON.stringify({
-          ...chatBody,
-          googleAPIKey: pluginKeys
-            .find((key) => key.pluginId === 'google-search')
-            ?.requiredKeys.find((key) => key.key === 'GOOGLE_API_KEY')?.value,
-          googleCSEId: pluginKeys
-            .find((key) => key.pluginId === 'google-search')
-            ?.requiredKeys.find((key) => key.key === 'GOOGLE_CSE_ID')?.value,
-        });
-      }
-
       const eventSource = new EventSource(
         `${window.location.protocol}//${window.location.host}/api/v1/completions?query=${message.content}`,
       );
-      setLoading(false);
 
-      eventSource.addEventListener('error', function (event) {});
-
-      eventSource.addEventListener('on_chat_model_stream', function (event) {
-        const chunkValue = event.data;
+      eventSource.addEventListener('error', function (event) {
+        console.log(event);
+        setLoading(false);
+        setMessageIsStreaming(false);
       });
 
-      eventSource.addEventListener('on_chat_model_end', function (event) {
-        console.log(event.data);
-        console.log(updatedConversation);
-
+      eventSource.addEventListener('on_chat_model_start', function (event) {
         const updatedMessages: Message[] = [
           ...updatedConversation.messages,
           { role: 'assistant', content: event.data },
@@ -159,35 +138,55 @@ const Home: React.FC<HomeProps> = ({
         };
 
         setSelectedConversation(updatedConversation);
-        saveConversation(updatedConversation);
-        const updatedConversations: Conversation[] = conversations.map(
-          (conversation) => {
-            if (conversation.id === selectedConversation.id) {
-              return updatedConversation;
+        setLoading(false);
+      });
+
+      eventSource.addEventListener('on_chat_model_stream', function (event) {
+        const updatedMessages: Message[] = updatedConversation.messages.map(
+          (message, index) => {
+            if (index === updatedConversation.messages.length - 1) {
+              return {
+                ...message,
+                content: message.content + event.data,
+              };
             }
 
-            return conversation;
+            return message;
           },
         );
 
-        if (updatedConversations.length === 0) {
-          updatedConversations.push(updatedConversation);
-        }
-        setConversations(updatedConversations);
-        saveConversations(updatedConversations);
-        console.log(updatedConversation);
+        updatedConversation = {
+          ...updatedConversation,
+          messages: updatedMessages,
+        };
 
+        setSelectedConversation(updatedConversation);
+      });
+
+      eventSource.addEventListener('on_chat_model_end', function (event) {
+        setMessageIsStreaming(false);
         eventSource.close();
       });
 
-      // setConversations(updatedConversations);
-      // saveConversations(updatedConversations);
+      saveConversation(updatedConversation);
 
-      setMessageIsStreaming(false);
+      const updatedConversations: Conversation[] = conversations.map(
+        (conversation) => {
+          if (conversation.id === selectedConversation.id) {
+            return updatedConversation;
+          }
+
+          return conversation;
+        },
+      );
+
+      if (updatedConversations.length === 0) {
+        updatedConversations.push(updatedConversation);
+      }
+
+      setConversations(updatedConversations);
+      saveConversations(updatedConversations);
     } else {
-      // setConversations(updatedConversations);
-      // saveConversations(updatedConversations);
-
       setLoading(false);
       setMessageIsStreaming(false);
     }
