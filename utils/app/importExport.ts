@@ -7,6 +7,11 @@ import {
   SupportedExportFormats,
 } from '@/types/export';
 import { cleanConversationHistory } from './clean';
+import { v4 as uuidv4 } from 'uuid';
+import axios from 'axios';
+import { APIHistory, Conversation, Message } from '@/types/chat';
+import { OpenAIModels, fallbackModelID } from '@/types/openai';
+import { DEFAULT_SYSTEM_PROMPT } from '@/utils/app/const';
 
 export function isExportFormatV1(obj: any): obj is ExportFormatV1 {
   return Array.isArray(obj);
@@ -67,14 +72,9 @@ function currentDate() {
   return `${month}-${day}`;
 }
 
-export const exportData = () => {
-  let history = localStorage.getItem('conversationHistory');
+export const exportData = (userId: string) => {
   let folders = localStorage.getItem('folders');
   let prompts = localStorage.getItem('prompts');
-
-  if (history) {
-    history = JSON.parse(history);
-  }
 
   if (folders) {
     folders = JSON.parse(folders);
@@ -84,25 +84,52 @@ export const exportData = () => {
     prompts = JSON.parse(prompts);
   }
 
-  const data = {
-    version: 4,
-    history: history || [],
-    folders: folders || [],
-    prompts: prompts || [],
-  } as LatestExportFormat;
+  axios
+    .get(
+      `${window.location.protocol}//${window.location.host}/api/v1/database/chat-history?user_id=${userId}`,
+    )
+    .then((response) => {
+      const conversationHistory: APIHistory[] = response.data;
+      let messages: Message[] = [];
+      conversationHistory.map((history) => {
+        messages = [
+          ...messages,
+          { role: 'user', content: history.user_query },
+          { role: 'assistant', content: history.completion },
+        ];
+      });
+      const history: Conversation[] = [
+        {
+          id: uuidv4(),
+          name: 'New conversation',
+          messages: messages,
+          model: OpenAIModels[fallbackModelID],
+          prompt: DEFAULT_SYSTEM_PROMPT,
+          folderId: null,
+        },
+      ];
 
-  const blob = new Blob([JSON.stringify(data, null, 2)], {
-    type: 'application/json',
-  });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.download = `chatbot_ui_history_${currentDate()}.json`;
-  link.href = url;
-  link.style.display = 'none';
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+      const data = {
+        version: 4,
+        history: history || [],
+        folders: folders || [],
+        prompts: prompts || [],
+      } as LatestExportFormat;
+
+      const blob = new Blob([JSON.stringify(data, null, 2)], {
+        type: 'application/json',
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.download = `agentic_rag_history_${currentDate()}.json`;
+      link.href = url;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    })
+    .catch((error) => console.log(error));
 };
 
 export const importData = (

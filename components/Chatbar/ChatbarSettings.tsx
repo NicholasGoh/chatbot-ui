@@ -34,9 +34,7 @@ export const ChatbarSettings: FC<Props> = ({
 
   return (
     <div className="flex flex-col items-center space-y-1 border-t border-white/20 pt-1 text-sm">
-      {conversationsCount > 0 ? (
-        <ClearConversations onClearConversations={onClearConversations} />
-      ) : null}
+      {<ClearConversations onClearConversations={onClearConversations} />}
 
       <SidebarButton
         text={t('Export data')}

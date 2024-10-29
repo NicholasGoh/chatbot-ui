@@ -22,3 +22,14 @@ export interface Conversation {
   prompt: string;
   folderId: string | null;
 }
+
+export interface APIHistory {
+  user_query: string;
+  completion: string;
+}
+
+export interface APIInsertPayload {
+  user_id: string;
+  user_query: string;
+  completion: string;
+}

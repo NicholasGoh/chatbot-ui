@@ -12,19 +12,8 @@ export const updateConversation = (
     return c;
   });
 
-  saveConversation(updatedConversation);
-  saveConversations(updatedConversations);
-
   return {
     single: updatedConversation,
     all: updatedConversations,
   };
-};
-
-export const saveConversation = (conversation: Conversation) => {
-  localStorage.setItem('selectedConversation', JSON.stringify(conversation));
-};
-
-export const saveConversations = (conversations: Conversation[]) => {
-  localStorage.setItem('conversationHistory', JSON.stringify(conversations));
 };

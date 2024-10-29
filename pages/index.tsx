@@ -1,7 +1,13 @@
 import { Chat } from '@/components/Chat/Chat';
 import { Chatbar } from '@/components/Chatbar/Chatbar';
 import { Navbar } from '@/components/Mobile/Navbar';
-import { ChatBody, Conversation, Message } from '@/types/chat';
+import {
+  APIHistory,
+  APIInsertPayload,
+  ChatBody,
+  Conversation,
+  Message,
+} from '@/types/chat';
 import { KeyValuePair } from '@/types/data';
 import { ErrorMessage } from '@/types/error';
 import { LatestExportFormat, SupportedExportFormats } from '@/types/export';
@@ -20,11 +26,7 @@ import {
   cleanSelectedConversation,
 } from '@/utils/app/clean';
 import { DEFAULT_SYSTEM_PROMPT } from '@/utils/app/const';
-import {
-  saveConversation,
-  saveConversations,
-  updateConversation,
-} from '@/utils/app/conversation';
+import { updateConversation } from '@/utils/app/conversation';
 import { saveFolders } from '@/utils/app/folders';
 import { exportData, importData } from '@/utils/app/importExport';
 import { savePrompts } from '@/utils/app/prompts';
@@ -38,6 +40,8 @@ import toast from 'react-hot-toast';
 import { v4 as uuidv4 } from 'uuid';
 import { SignedIn, SignedOut, SignInButton } from '@clerk/clerk-react';
 import { UserButton } from '@clerk/clerk-react';
+import { useUser } from '@clerk/clerk-react';
+import axios from 'axios';
 
 interface HomeProps {
   serverSideApiKeyIsSet: boolean;
@@ -75,6 +79,8 @@ const Home: React.FC<HomeProps> = ({
 
   const [prompts, setPrompts] = useState<Prompt[]>([]);
   const [showPromptbar, setShowPromptbar] = useState<boolean>(true);
+  const { user, isLoaded } = useUser();
+  const [userId, setUserId] = useState('unknown_user');
 
   // REFS ----------------------------------------------
 
@@ -173,9 +179,26 @@ const Home: React.FC<HomeProps> = ({
       eventSource.addEventListener('on_chat_model_end', function (event) {
         setMessageIsStreaming(false);
         eventSource.close();
-      });
 
-      saveConversation(updatedConversation);
+        const user_query =
+          updatedConversation.messages
+            .filter((message) => message.role === 'user')
+            .reverse()
+            .find((message) => true)?.content || '';
+        const headers = {
+          'Content-Type': 'application/json',
+        };
+        const insertPayload: APIInsertPayload = {
+          user_id: userId,
+          user_query: user_query,
+          completion: event.data,
+        };
+        axios.post(
+          `${window.location.protocol}//${window.location.host}/api/v1/database/chat-history`,
+          insertPayload,
+          { headers },
+        );
+      });
 
       const updatedConversations: Conversation[] = conversations.map(
         (conversation) => {
@@ -192,7 +215,6 @@ const Home: React.FC<HomeProps> = ({
       }
 
       setConversations(updatedConversations);
-      saveConversations(updatedConversations);
     } else {
       setLoading(false);
       setMessageIsStreaming(false);
@@ -267,7 +289,7 @@ const Home: React.FC<HomeProps> = ({
   };
 
   const handleExportData = () => {
-    exportData();
+    exportData(userId);
   };
 
   const handleImportConversations = (data: SupportedExportFormats) => {
@@ -281,7 +303,6 @@ const Home: React.FC<HomeProps> = ({
 
   const handleSelectConversation = (conversation: Conversation) => {
     setSelectedConversation(conversation);
-    saveConversation(conversation);
   };
 
   // FOLDER OPERATIONS  --------------------------------------------
@@ -315,7 +336,6 @@ const Home: React.FC<HomeProps> = ({
       return c;
     });
     setConversations(updatedConversations);
-    saveConversations(updatedConversations);
 
     const updatedPrompts: Prompt[] = prompts.map((p) => {
       if (p.folderId === folderId) {
@@ -371,9 +391,6 @@ const Home: React.FC<HomeProps> = ({
     setSelectedConversation(newConversation);
     setConversations(updatedConversations);
 
-    saveConversation(newConversation);
-    saveConversations(updatedConversations);
-
     setLoading(false);
   };
 
@@ -382,13 +399,11 @@ const Home: React.FC<HomeProps> = ({
       (c) => c.id !== conversation.id,
     );
     setConversations(updatedConversations);
-    saveConversations(updatedConversations);
 
     if (updatedConversations.length > 0) {
       setSelectedConversation(
         updatedConversations[updatedConversations.length - 1],
       );
-      saveConversation(updatedConversations[updatedConversations.length - 1]);
     } else {
       setSelectedConversation({
         id: uuidv4(),
@@ -421,6 +436,9 @@ const Home: React.FC<HomeProps> = ({
   };
 
   const handleClearConversations = () => {
+    axios.delete(
+      `${window.location.protocol}//${window.location.host}/api/v1/database/chat-history/${userId}`,
+    );
     setConversations([]);
     localStorage.removeItem('conversationHistory');
 
@@ -506,6 +524,39 @@ const Home: React.FC<HomeProps> = ({
   // EFFECTS  --------------------------------------------
 
   useEffect(() => {
+    if (userId === 'unknown_user' && isLoaded && user) {
+      setUserId(user.id);
+      console.log('userid');
+      console.log(user.id);
+      let messages: Message[] = [];
+
+      axios
+        .get(
+          `${window.location.protocol}//${window.location.host}/api/v1/database/chat-history?user_id=${user?.id}`,
+        )
+        .then((response) => {
+          const conversationHistory: APIHistory[] = response.data;
+          conversationHistory.map((history) => {
+            messages = [
+              ...messages,
+              { role: 'user', content: history.user_query },
+              { role: 'assistant', content: history.completion },
+            ];
+          });
+          setSelectedConversation({
+            id: uuidv4(),
+            name: 'New conversation',
+            messages: messages,
+            model: OpenAIModels[defaultModelId],
+            prompt: DEFAULT_SYSTEM_PROMPT,
+            folderId: null,
+          });
+        })
+        .catch((error) => console.log(error));
+    }
+  });
+
+  useEffect(() => {
     if (currentMessage) {
       handleSend(currentMessage);
       setCurrentMessage(undefined);
@@ -572,35 +623,6 @@ const Home: React.FC<HomeProps> = ({
     const prompts = localStorage.getItem('prompts');
     if (prompts) {
       setPrompts(JSON.parse(prompts));
-    }
-
-    const conversationHistory = localStorage.getItem('conversationHistory');
-    if (conversationHistory) {
-      const parsedConversationHistory: Conversation[] =
-        JSON.parse(conversationHistory);
-      const cleanedConversationHistory = cleanConversationHistory(
-        parsedConversationHistory,
-      );
-      setConversations(cleanedConversationHistory);
-    }
-
-    const selectedConversation = localStorage.getItem('selectedConversation');
-    if (selectedConversation) {
-      const parsedSelectedConversation: Conversation =
-        JSON.parse(selectedConversation);
-      const cleanedSelectedConversation = cleanSelectedConversation(
-        parsedSelectedConversation,
-      );
-      setSelectedConversation(cleanedSelectedConversation);
-    } else {
-      setSelectedConversation({
-        id: uuidv4(),
-        name: 'New conversation',
-        messages: [],
-        model: OpenAIModels[defaultModelId],
-        prompt: DEFAULT_SYSTEM_PROMPT,
-        folderId: null,
-      });
     }
   }, [serverSideApiKeyIsSet]);
 
