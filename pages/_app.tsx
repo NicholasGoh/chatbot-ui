@@ -16,7 +16,7 @@ function App({ Component, pageProps }: AppProps<{}>) {
   return (
     <div className={inter.className}>
       <ClerkProvider publishableKey={PUBLISHABLE_KEY} afterSignOutUrl="/ui">
-        <Toaster />
+        <Toaster position="top-right" />
         <Component {...pageProps} />
       </ClerkProvider>
     </div>

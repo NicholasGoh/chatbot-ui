@@ -549,7 +549,9 @@ const Home: React.FC<HomeProps> = ({
             folderId: null,
           });
         })
-        .catch((error) => console.log(error));
+        .catch((error) =>
+          toast.error('Cannot fetch chat history:\n'.concat(error.message)),
+        );
     }
   }, [userId, isLoaded, user, defaultModelId]);
 

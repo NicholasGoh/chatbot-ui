@@ -6,6 +6,7 @@ import {
   LatestExportFormat,
   SupportedExportFormats,
 } from '@/types/export';
+import toast from 'react-hot-toast';
 import { cleanConversationHistory } from './clean';
 import { v4 as uuidv4 } from 'uuid';
 import axios from 'axios';
@@ -128,8 +129,11 @@ export const exportData = (userId: string) => {
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
+      toast.success('Download success!');
     })
-    .catch((error) => console.log(error));
+    .catch((error) =>
+      toast.error('Cannot fetch chat history:\n'.concat(error.message)),
+    );
 };
 
 export const importData = (
