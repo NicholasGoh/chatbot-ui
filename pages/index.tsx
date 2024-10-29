@@ -125,7 +125,7 @@ const Home: React.FC<HomeProps> = ({
       };
 
       const eventSource = new EventSource(
-        `${window.location.protocol}//${window.location.host}/api/v1/completions?query=${message.content}`,
+        `${window.location.protocol}//${window.location.host}/api/v1/completions?user_id=${userId}&query=${message.content}`,
       );
 
       eventSource.addEventListener('error', function (event) {
