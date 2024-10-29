@@ -627,7 +627,7 @@ const Home: React.FC<HomeProps> = ({
       </SignedOut>
 
       <SignedIn>
-        <div className="fixed top-2 right-4 z-50 h-7 w-7 sm:top-2.5 sm:right-4 sm:h-8 sm:w-8 sm:text-neutral-700">
+        <div className="fixed top-2 right-4 z-50 h-7 w-7 sm:top-1 sm:right-4 sm:h-8 sm:w-8 sm:text-neutral-700">
           <UserButton />
         </div>
         {selectedConversation && (
