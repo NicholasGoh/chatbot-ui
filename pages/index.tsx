@@ -144,25 +144,30 @@ const Home: React.FC<HomeProps> = ({
       });
 
       eventSource.addEventListener('on_chat_model_stream', function (event) {
-        const updatedMessages: Message[] = updatedConversation.messages.map(
-          (message, index) => {
-            if (index === updatedConversation.messages.length - 1) {
-              return {
-                ...message,
-                content: message.content + event.data,
-              };
-            }
+        if (stopConversationRef.current) {
+          setMessageIsStreaming(false);
+          eventSource.close();
+        } else {
+          const updatedMessages: Message[] = updatedConversation.messages.map(
+            (message, index) => {
+              if (index === updatedConversation.messages.length - 1) {
+                return {
+                  ...message,
+                  content: message.content + event.data,
+                };
+              }
 
-            return message;
-          },
-        );
+              return message;
+            },
+          );
 
-        updatedConversation = {
-          ...updatedConversation,
-          messages: updatedMessages,
-        };
+          updatedConversation = {
+            ...updatedConversation,
+            messages: updatedMessages,
+          };
 
-        setSelectedConversation(updatedConversation);
+          setSelectedConversation(updatedConversation);
+        }
       });
 
       eventSource.addEventListener('on_chat_model_end', function (event) {
