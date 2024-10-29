@@ -36,6 +36,8 @@ import Head from 'next/head';
 import { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { v4 as uuidv4 } from 'uuid';
+import { SignedIn, SignedOut, SignInButton } from '@clerk/clerk-react';
+import { UserButton } from '@clerk/clerk-react';
 
 interface HomeProps {
   serverSideApiKeyIsSet: boolean;
@@ -608,84 +610,100 @@ const Home: React.FC<HomeProps> = ({
         />
         <link rel="icon" href="/favicon.ico" />
       </Head>
-      {selectedConversation && (
-        <main
-          className={`flex h-screen w-screen flex-col text-sm text-white dark:text-white ${lightMode}`}
-        >
-          <div className="fixed top-0 w-full sm:hidden">
-            <Navbar
-              selectedConversation={selectedConversation}
-              onNewConversation={handleNewConversation}
-            />
+
+      <SignedOut>
+        <div className="sign-in-parent">
+          <div className="sign-in-div">
+            <SignInButton>
+              <button className="sign-in-button">Sign in</button>
+            </SignInButton>
           </div>
+        </div>
+      </SignedOut>
 
-          <div className="flex h-full w-full pt-[48px] sm:pt-0">
-            {showSidebar ? (
-              <div>
-                <Chatbar
-                  loading={messageIsStreaming}
-                  conversations={conversations}
-                  lightMode={lightMode}
-                  selectedConversation={selectedConversation}
-                  apiKey={apiKey}
-                  pluginKeys={pluginKeys}
-                  folders={folders.filter((folder) => folder.type === 'chat')}
-                  onToggleLightMode={handleLightMode}
-                  onCreateFolder={(name) => handleCreateFolder(name, 'chat')}
-                  onDeleteFolder={handleDeleteFolder}
-                  onUpdateFolder={handleUpdateFolder}
-                  onNewConversation={handleNewConversation}
-                  onSelectConversation={handleSelectConversation}
-                  onDeleteConversation={handleDeleteConversation}
-                  onUpdateConversation={handleUpdateConversation}
-                  onApiKeyChange={handleApiKeyChange}
-                  onClearConversations={handleClearConversations}
-                  onExportConversations={handleExportData}
-                  onImportConversations={handleImportConversations}
-                  onPluginKeyChange={handlePluginKeyChange}
-                  onClearPluginKey={handleClearPluginKey}
-                />
-
-                <button
-                  className="fixed top-5 left-[270px] z-50 h-7 w-7 hover:text-gray-400 dark:text-white dark:hover:text-gray-300 sm:top-0.5 sm:left-[270px] sm:h-8 sm:w-8 sm:text-neutral-700"
-                  onClick={handleToggleChatbar}
-                >
-                  <IconArrowBarLeft />
-                </button>
-                <div
-                  onClick={handleToggleChatbar}
-                  className="absolute top-0 left-0 z-10 h-full w-full bg-black opacity-70 sm:hidden"
-                ></div>
-              </div>
-            ) : (
-              <button
-                className="fixed top-2.5 left-4 z-50 h-7 w-7 text-white hover:text-gray-400 dark:text-white dark:hover:text-gray-300 sm:top-0.5 sm:left-4 sm:h-8 sm:w-8 sm:text-neutral-700"
-                onClick={handleToggleChatbar}
-              >
-                <IconArrowBarRight />
-              </button>
-            )}
-
-            <div className="flex flex-1">
-              <Chat
-                conversation={selectedConversation}
-                messageIsStreaming={messageIsStreaming}
-                apiKey={apiKey}
-                serverSideApiKeyIsSet={serverSideApiKeyIsSet}
-                defaultModelId={defaultModelId}
-                modelError={modelError}
-                models={models}
-                loading={loading}
-                prompts={prompts}
-                onSend={handleSend}
-                onUpdateConversation={handleUpdateConversation}
-                onEditMessage={handleEditMessage}
-                stopConversationRef={stopConversationRef}
+      <SignedIn>
+        <div className="fixed top-2 right-4 z-50 h-7 w-7 sm:top-2.5 sm:right-4 sm:h-8 sm:w-8 sm:text-neutral-700">
+          <UserButton />
+        </div>
+        {selectedConversation && (
+          <main
+            className={`flex h-screen w-screen flex-col text-sm text-white dark:text-white ${lightMode}`}
+          >
+            <div className="fixed top-0 w-full sm:hidden">
+              <Navbar
+                selectedConversation={selectedConversation}
+                onNewConversation={handleNewConversation}
               />
             </div>
-          </div>
-        </main>
-      )}
+
+            <div className="flex h-full w-full pt-[48px] sm:pt-0">
+              {showSidebar ? (
+                <div>
+                  <Chatbar
+                    loading={messageIsStreaming}
+                    conversations={conversations}
+                    lightMode={lightMode}
+                    selectedConversation={selectedConversation}
+                    apiKey={apiKey}
+                    pluginKeys={pluginKeys}
+                    folders={folders.filter((folder) => folder.type === 'chat')}
+                    onToggleLightMode={handleLightMode}
+                    onCreateFolder={(name) => handleCreateFolder(name, 'chat')}
+                    onDeleteFolder={handleDeleteFolder}
+                    onUpdateFolder={handleUpdateFolder}
+                    onNewConversation={handleNewConversation}
+                    onSelectConversation={handleSelectConversation}
+                    onDeleteConversation={handleDeleteConversation}
+                    onUpdateConversation={handleUpdateConversation}
+                    onApiKeyChange={handleApiKeyChange}
+                    onClearConversations={handleClearConversations}
+                    onExportConversations={handleExportData}
+                    onImportConversations={handleImportConversations}
+                    onPluginKeyChange={handlePluginKeyChange}
+                    onClearPluginKey={handleClearPluginKey}
+                  />
+
+                  <button
+                    className="fixed top-5 left-[270px] z-50 h-7 w-7 hover:text-gray-400 dark:text-white dark:hover:text-gray-300 sm:top-0.5 sm:left-[270px] sm:h-8 sm:w-8 sm:text-neutral-700"
+                    onClick={handleToggleChatbar}
+                  >
+                    <IconArrowBarLeft />
+                  </button>
+                  <div
+                    onClick={handleToggleChatbar}
+                    className="absolute top-0 left-0 z-10 h-full w-full bg-black opacity-70 sm:hidden"
+                  ></div>
+                </div>
+              ) : (
+                <button
+                  className="fixed top-2.5 left-4 z-50 h-7 w-7 text-white hover:text-gray-400 dark:text-white dark:hover:text-gray-300 sm:top-0.5 sm:left-4 sm:h-8 sm:w-8 sm:text-neutral-700"
+                  onClick={handleToggleChatbar}
+                >
+                  <IconArrowBarRight />
+                </button>
+              )}
+
+              <div className="flex flex-1">
+                <Chat
+                  conversation={selectedConversation}
+                  messageIsStreaming={messageIsStreaming}
+                  apiKey={apiKey}
+                  serverSideApiKeyIsSet={serverSideApiKeyIsSet}
+                  defaultModelId={defaultModelId}
+                  modelError={modelError}
+                  models={models}
+                  loading={loading}
+                  prompts={prompts}
+                  onSend={handleSend}
+                  onUpdateConversation={handleUpdateConversation}
+                  onEditMessage={handleEditMessage}
+                  stopConversationRef={stopConversationRef}
+                />
+              </div>
+            </div>
+          </main>
+        )}
+      </SignedIn>
     </>
   );
 };
