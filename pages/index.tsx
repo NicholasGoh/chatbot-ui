@@ -129,7 +129,6 @@ const Home: React.FC<HomeProps> = ({
       );
 
       eventSource.addEventListener('error', function (event) {
-        console.log(event);
         setLoading(false);
         setMessageIsStreaming(false);
       });
@@ -526,8 +525,6 @@ const Home: React.FC<HomeProps> = ({
   useEffect(() => {
     if (userId === 'unknown_user' && isLoaded && user) {
       setUserId(user.id);
-      console.log('userid');
-      console.log(user.id);
       let messages: Message[] = [];
 
       axios
@@ -554,7 +551,7 @@ const Home: React.FC<HomeProps> = ({
         })
         .catch((error) => console.log(error));
     }
-  });
+  }, [userId, isLoaded, user, defaultModelId]);
 
   useEffect(() => {
     if (currentMessage) {
@@ -624,7 +621,7 @@ const Home: React.FC<HomeProps> = ({
     if (prompts) {
       setPrompts(JSON.parse(prompts));
     }
-  }, [serverSideApiKeyIsSet]);
+  }, [serverSideApiKeyIsSet, serverSidePluginKeysSet]);
 
   return (
     <>
