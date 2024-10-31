@@ -131,6 +131,7 @@ const Home: React.FC<HomeProps> = ({
       eventSource.addEventListener('error', function (event) {
         setLoading(false);
         setMessageIsStreaming(false);
+        toast.error('Cannot connect to backend');
       });
 
       eventSource.addEventListener('on_chat_model_start', function (event) {
@@ -192,11 +193,17 @@ const Home: React.FC<HomeProps> = ({
           user_query: user_query,
           completion: event.data,
         };
-        axios.post(
-          `${window.location.protocol}//${window.location.host}/api/v1/database/chat-history`,
-          insertPayload,
-          { headers },
-        );
+        axios
+          .post(
+            `${window.location.protocol}//${window.location.host}/api/v1/database/chat-history`,
+            insertPayload,
+            { headers },
+          )
+          .catch((error) =>
+            toast.error(
+              'Cannot insert history into backend:\n'.concat(error.message),
+            ),
+          );
       });
 
       const updatedConversations: Conversation[] = conversations.map(
@@ -435,9 +442,13 @@ const Home: React.FC<HomeProps> = ({
   };
 
   const handleClearConversations = () => {
-    axios.delete(
-      `${window.location.protocol}//${window.location.host}/api/v1/database/chat-history/${userId}`,
-    );
+    axios
+      .delete(
+        `${window.location.protocol}//${window.location.host}/api/v1/database/chat-history/${userId}`,
+      )
+      .catch((error) =>
+        toast.error('Cannot delete history:\n'.concat(error.message)),
+      );
     setConversations([]);
     localStorage.removeItem('conversationHistory');
 
