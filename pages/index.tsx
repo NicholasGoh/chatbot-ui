@@ -124,7 +124,7 @@ const Home: React.FC<HomeProps> = ({
       setMessageIsStreaming(true);
 
       let documents: APIDocument[] = [];
-
+      setDocuments([]);
       const eventSource = new EventSource(
         `${window.location.protocol}//${window.location.host}/api/v1/rag?user_id=${userId}&query=${message.content}`,
       );
