@@ -1,4 +1,4 @@
-import { Message } from '@/types/chat';
+import { APIDocument, Message } from '@/types/chat';
 import {
   IconCheck,
   IconCopy,
@@ -6,6 +6,7 @@ import {
   IconUser,
   IconRobot,
 } from '@tabler/icons-react';
+import { CustomizedDialogs } from '@/components/Dialog/Dialog';
 import { useTranslation } from 'next-i18next';
 import { FC, memo, useEffect, useRef, useState } from 'react';
 import rehypeMathjax from 'rehype-mathjax';
@@ -18,10 +19,11 @@ interface Props {
   message: Message;
   messageIndex: number;
   onEditMessage: (message: Message, messageIndex: number) => void;
+  documents: APIDocument[];
 }
 
 export const ChatMessage: FC<Props> = memo(
-  ({ message, messageIndex, onEditMessage }) => {
+  ({ message, messageIndex, onEditMessage, documents }) => {
     const { t } = useTranslation('chat');
     const [isEditing, setIsEditing] = useState<boolean>(false);
     const [isTyping, setIsTyping] = useState<boolean>(false);
@@ -226,6 +228,7 @@ export const ChatMessage: FC<Props> = memo(
                 >
                   {message.content}
                 </MemoizedReactMarkdown>
+                <CustomizedDialogs documents={documents} />
               </>
             )}
           </div>

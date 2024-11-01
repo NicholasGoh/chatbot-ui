@@ -4,6 +4,7 @@ import { Navbar } from '@/components/Mobile/Navbar';
 import {
   APIHistory,
   APIInsertPayload,
+  APIDocument,
   ChatBody,
   Conversation,
   Message,
@@ -38,9 +39,13 @@ import Head from 'next/head';
 import { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { v4 as uuidv4 } from 'uuid';
-import { SignedIn, SignedOut, SignInButton } from '@clerk/clerk-react';
-import { UserButton } from '@clerk/clerk-react';
-import { useUser } from '@clerk/clerk-react';
+import {
+  SignedIn,
+  SignedOut,
+  SignInButton,
+  UserButton,
+  useUser,
+} from '@clerk/clerk-react';
 import axios from 'axios';
 
 interface HomeProps {
@@ -63,6 +68,7 @@ const Home: React.FC<HomeProps> = ({
   const [loading, setLoading] = useState<boolean>(false);
   const [lightMode, setLightMode] = useState<'dark' | 'light'>('dark');
   const [messageIsStreaming, setMessageIsStreaming] = useState<boolean>(false);
+  const [getDocuments, setDocuments] = useState<APIDocument[]>([]);
 
   const [modelError, setModelError] = useState<ErrorMessage | null>(null);
 
@@ -117,15 +123,10 @@ const Home: React.FC<HomeProps> = ({
       setLoading(true);
       setMessageIsStreaming(true);
 
-      const chatBody: ChatBody = {
-        model: updatedConversation.model,
-        messages: updatedConversation.messages,
-        key: apiKey,
-        prompt: updatedConversation.prompt,
-      };
+      let documents: APIDocument[] = [];
 
       const eventSource = new EventSource(
-        `${window.location.protocol}//${window.location.host}/api/v1/completions?user_id=${userId}&query=${message.content}`,
+        `${window.location.protocol}//${window.location.host}/api/v1/rag?user_id=${userId}&query=${message.content}`,
       );
 
       eventSource.addEventListener('error', function (event) {
@@ -176,6 +177,12 @@ const Home: React.FC<HomeProps> = ({
         }
       });
 
+      eventSource.addEventListener('on_retriever_end', function (event) {
+        const jsonString = event.data.replace(/'([^']+)'/g, '"$1"');
+        documents = JSON.parse(jsonString);
+        setDocuments(documents);
+      });
+
       eventSource.addEventListener('on_chat_model_end', function (event) {
         setMessageIsStreaming(false);
         eventSource.close();
@@ -192,6 +199,7 @@ const Home: React.FC<HomeProps> = ({
           user_id: userId,
           user_query: user_query,
           completion: event.data,
+          documents: JSON.stringify(documents),
         };
         axios
           .post(
@@ -446,6 +454,7 @@ const Home: React.FC<HomeProps> = ({
       .delete(
         `${window.location.protocol}//${window.location.host}/api/v1/database/chat-history/${userId}`,
       )
+      .then(() => toast.success('Deleted history!'))
       .catch((error) =>
         toast.error('Cannot delete history:\n'.concat(error.message)),
       );
@@ -537,6 +546,7 @@ const Home: React.FC<HomeProps> = ({
     if (userId === 'unknown_user' && isLoaded && user) {
       setUserId(user.id);
       let messages: Message[] = [];
+      let documents: APIDocument[] = [];
 
       axios
         .get(
@@ -550,6 +560,8 @@ const Home: React.FC<HomeProps> = ({
               { role: 'user', content: history.user_query },
               { role: 'assistant', content: history.completion },
             ];
+            console.log(history.documents);
+            documents = history.documents;
           });
           setSelectedConversation({
             id: uuidv4(),
@@ -559,6 +571,7 @@ const Home: React.FC<HomeProps> = ({
             prompt: DEFAULT_SYSTEM_PROMPT,
             folderId: null,
           });
+          setDocuments(documents);
         })
         .catch((error) =>
           toast.error('Cannot fetch chat history:\n'.concat(error.message)),
@@ -735,6 +748,7 @@ const Home: React.FC<HomeProps> = ({
                   onUpdateConversation={handleUpdateConversation}
                   onEditMessage={handleEditMessage}
                   stopConversationRef={stopConversationRef}
+                  documents={getDocuments}
                 />
               </div>
             </div>

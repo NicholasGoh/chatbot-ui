@@ -1,4 +1,4 @@
-import { Conversation, Message } from '@/types/chat';
+import { APIDocument, Conversation, Message } from '@/types/chat';
 import { KeyValuePair } from '@/types/data';
 import { ErrorMessage } from '@/types/error';
 import { OpenAIModel, OpenAIModelID } from '@/types/openai';
@@ -34,6 +34,7 @@ interface Props {
   modelError: ErrorMessage | null;
   loading: boolean;
   prompts: Prompt[];
+  documents: APIDocument[];
   onSend: (
     message: Message,
     deleteCount: number,
@@ -62,6 +63,7 @@ export const Chat: FC<Props> = memo(
     onUpdateConversation,
     onEditMessage,
     stopConversationRef,
+    documents,
   }) => {
     const { t } = useTranslation('chat');
     const [currentMessage, setCurrentMessage] = useState<Message>();
@@ -267,6 +269,7 @@ export const Chat: FC<Props> = memo(
                       message={message}
                       messageIndex={index}
                       onEditMessage={onEditMessage}
+                      documents={documents}
                     />
                   ))}
 
