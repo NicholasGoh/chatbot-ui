@@ -18,6 +18,7 @@ export interface Conversation {
   id: string;
   name: string;
   messages: Message[];
+  documents?: APIDocument[][];
   model: OpenAIModel;
   prompt: string;
   folderId: string | null;

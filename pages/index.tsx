@@ -68,13 +68,14 @@ const Home: React.FC<HomeProps> = ({
   const [loading, setLoading] = useState<boolean>(false);
   const [lightMode, setLightMode] = useState<'dark' | 'light'>('dark');
   const [messageIsStreaming, setMessageIsStreaming] = useState<boolean>(false);
-  const [getDocuments, setDocuments] = useState<APIDocument[]>([]);
 
   const [modelError, setModelError] = useState<ErrorMessage | null>(null);
 
   const [models, setModels] = useState<OpenAIModel[]>([]);
 
   const [folders, setFolders] = useState<Folder[]>([]);
+
+  const [currentDocuments, setCurrentDocuments] = useState<APIDocument[]>([]);
 
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] =
@@ -124,7 +125,6 @@ const Home: React.FC<HomeProps> = ({
       setMessageIsStreaming(true);
 
       let documents: APIDocument[] = [];
-      setDocuments([]);
       const eventSource = new EventSource(
         `${window.location.protocol}//${window.location.host}/api/v1/rag?user_id=${userId}&query=${message.content}`,
       );
@@ -179,8 +179,17 @@ const Home: React.FC<HomeProps> = ({
 
       eventSource.addEventListener('on_retriever_end', function (event) {
         const jsonString = event.data.replace(/'([^']+)'/g, '"$1"');
-        documents = JSON.parse(jsonString);
-        setDocuments(documents);
+        try {
+          documents = JSON.parse(jsonString);
+        } catch {}
+        updatedConversation = {
+          ...updatedConversation,
+          documents: updatedConversation.documents
+            ? [...updatedConversation.documents, documents]
+            : [documents],
+        };
+        setSelectedConversation(updatedConversation);
+        setCurrentDocuments(documents);
       });
 
       eventSource.addEventListener('on_chat_model_end', function (event) {
@@ -213,6 +222,11 @@ const Home: React.FC<HomeProps> = ({
             ),
           );
       });
+
+      updatedConversation.documents = [
+        ...(updatedConversation.documents || []),
+        currentDocuments,
+      ];
 
       const updatedConversations: Conversation[] = conversations.map(
         (conversation) => {
@@ -546,7 +560,7 @@ const Home: React.FC<HomeProps> = ({
     if (userId === 'unknown_user' && isLoaded && user) {
       setUserId(user.id);
       let messages: Message[] = [];
-      let documents: APIDocument[] = [];
+      let documents: APIDocument[][] = [];
 
       axios
         .get(
@@ -560,18 +574,18 @@ const Home: React.FC<HomeProps> = ({
               { role: 'user', content: history.user_query },
               { role: 'assistant', content: history.completion },
             ];
-            console.log(history.documents);
-            documents = history.documents;
+            // NOTE filler as this is citation/reference is meant to map to user_query
+            documents = [...documents, [], history.documents];
           });
           setSelectedConversation({
             id: uuidv4(),
             name: 'New conversation',
             messages: messages,
+            documents: documents,
             model: OpenAIModels[defaultModelId],
             prompt: DEFAULT_SYSTEM_PROMPT,
             folderId: null,
           });
-          setDocuments(documents);
         })
         .catch((error) =>
           toast.error('Cannot fetch chat history:\n'.concat(error.message)),
@@ -748,7 +762,6 @@ const Home: React.FC<HomeProps> = ({
                   onUpdateConversation={handleUpdateConversation}
                   onEditMessage={handleEditMessage}
                   stopConversationRef={stopConversationRef}
-                  documents={getDocuments}
                 />
               </div>
             </div>

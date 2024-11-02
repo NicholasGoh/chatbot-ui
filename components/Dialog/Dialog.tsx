@@ -44,7 +44,7 @@ export const CustomizedDialogs: React.FC<Props> = ({ documents }) => {
 
   return (
     <React.Fragment>
-      {documents.length > 0 ? (
+      {documents && documents.length > 0 ? (
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           {documents.map((document) => (
             <Button
