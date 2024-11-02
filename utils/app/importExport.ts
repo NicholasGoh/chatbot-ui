@@ -6,7 +6,13 @@ import {
   LatestExportFormat,
   SupportedExportFormats,
 } from '@/types/export';
+import toast from 'react-hot-toast';
 import { cleanConversationHistory } from './clean';
+import { v4 as uuidv4 } from 'uuid';
+import axios from 'axios';
+import { APIHistory, Conversation, Message } from '@/types/chat';
+import { OpenAIModels, fallbackModelID } from '@/types/openai';
+import { DEFAULT_SYSTEM_PROMPT } from '@/utils/app/const';
 
 export function isExportFormatV1(obj: any): obj is ExportFormatV1 {
   return Array.isArray(obj);
@@ -49,14 +55,13 @@ export function cleanData(data: SupportedExportFormats): LatestExportFormat {
     };
   }
 
-  if (isExportFormatV3(data)) {    
-    return {...data, version: 4, prompts: []};
+  if (isExportFormatV3(data)) {
+    return { ...data, version: 4, prompts: [] };
   }
 
-  if(isExportFormatV4(data)){
+  if (isExportFormatV4(data)) {
     return data;
   }
-
 
   throw new Error('Unsupported data format');
 }
@@ -68,49 +73,74 @@ function currentDate() {
   return `${month}-${day}`;
 }
 
-export const exportData = () => {
-  let history = localStorage.getItem('conversationHistory');
+export const exportData = (userId: string) => {
   let folders = localStorage.getItem('folders');
   let prompts = localStorage.getItem('prompts');
-
-  if (history) {
-    history = JSON.parse(history);
-  }
 
   if (folders) {
     folders = JSON.parse(folders);
   }
 
-  if(prompts){
+  if (prompts) {
     prompts = JSON.parse(prompts);
   }
 
-  const data = {
-    version: 4,
-    history: history || [],
-    folders: folders || [],
-    prompts: prompts || [],
-  } as LatestExportFormat;
+  axios
+    .get(
+      `${window.location.protocol}//${window.location.host}/api/v1/database/chat-history?user_id=${userId}`,
+    )
+    .then((response) => {
+      const conversationHistory: APIHistory[] = response.data;
+      let messages: Message[] = [];
+      conversationHistory.map((history) => {
+        messages = [
+          ...messages,
+          { role: 'user', content: history.user_query },
+          { role: 'assistant', content: history.completion },
+        ];
+      });
+      const history: Conversation[] = [
+        {
+          id: uuidv4(),
+          name: 'New conversation',
+          messages: messages,
+          model: OpenAIModels[fallbackModelID],
+          prompt: DEFAULT_SYSTEM_PROMPT,
+          folderId: null,
+        },
+      ];
 
-  const blob = new Blob([JSON.stringify(data, null, 2)], {
-    type: 'application/json',
-  });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.download = `chatbot_ui_history_${currentDate()}.json`;
-  link.href = url;
-  link.style.display = 'none';
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+      const data = {
+        version: 4,
+        history: history || [],
+        folders: folders || [],
+        prompts: prompts || [],
+      } as LatestExportFormat;
+
+      const blob = new Blob([JSON.stringify(data, null, 2)], {
+        type: 'application/json',
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.download = `agentic_rag_history_${currentDate()}.json`;
+      link.href = url;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      toast.success('Download success!');
+    })
+    .catch((error) =>
+      toast.error('Cannot fetch chat history:\n'.concat(error.message)),
+    );
 };
 
 export const importData = (
   data: SupportedExportFormats,
 ): LatestExportFormat => {
   const cleanedData = cleanData(data);
-  const { history,folders, prompts } = cleanedData;
+  const { history, folders, prompts } = cleanedData;
 
   const conversations = history;
   localStorage.setItem('conversationHistory', JSON.stringify(conversations));

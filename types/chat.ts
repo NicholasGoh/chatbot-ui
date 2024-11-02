@@ -18,7 +18,34 @@ export interface Conversation {
   id: string;
   name: string;
   messages: Message[];
+  documents?: APIDocument[][];
   model: OpenAIModel;
   prompt: string;
   folderId: string | null;
+}
+
+export interface APIHistory {
+  user_query: string;
+  completion: string;
+  documents: APIDocument[];
+}
+
+export interface APIInsertPayload {
+  user_id: string;
+  user_query: string;
+  completion: string;
+  documents: string;
+}
+
+export interface APIDocument {
+  id: string;
+  metadata: APIMetaData;
+  page_content: string;
+}
+
+export interface APIMetaData {
+  page: string;
+  source: string;
+  score: number;
+  type: string;
 }

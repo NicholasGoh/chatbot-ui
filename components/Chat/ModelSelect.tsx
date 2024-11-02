@@ -49,9 +49,13 @@ export const ModelSelect: FC<Props> = ({
           ))}
         </select>
       </div>
-      <div className="w-full mt-3 text-left text-neutral-700 dark:text-neutral-400 flex items-center">
-        <a href="https://platform.openai.com/account/usage" target="_blank" className="flex items-center">
-          <IconExternalLink size={18} className={"inline mr-1"} />
+      <div className="mt-3 flex w-full items-center text-left text-neutral-700 dark:text-neutral-400">
+        <a
+          href="https://platform.openai.com/account/usage"
+          target="_blank"
+          className="flex items-center"
+        >
+          <IconExternalLink size={18} className={'mr-1 inline'} />
           {t('View Account Usage')}
         </a>
       </div>

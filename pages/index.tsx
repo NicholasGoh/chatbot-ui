@@ -1,9 +1,14 @@
-// import axios from 'axios';
-
 import { Chat } from '@/components/Chat/Chat';
 import { Chatbar } from '@/components/Chatbar/Chatbar';
 import { Navbar } from '@/components/Mobile/Navbar';
-import { ChatBody, Conversation, Message } from '@/types/chat';
+import {
+  APIHistory,
+  APIInsertPayload,
+  APIDocument,
+  ChatBody,
+  Conversation,
+  Message,
+} from '@/types/chat';
 import { KeyValuePair } from '@/types/data';
 import { ErrorMessage } from '@/types/error';
 import { LatestExportFormat, SupportedExportFormats } from '@/types/export';
@@ -22,11 +27,7 @@ import {
   cleanSelectedConversation,
 } from '@/utils/app/clean';
 import { DEFAULT_SYSTEM_PROMPT } from '@/utils/app/const';
-import {
-  saveConversation,
-  saveConversations,
-  updateConversation,
-} from '@/utils/app/conversation';
+import { updateConversation } from '@/utils/app/conversation';
 import { saveFolders } from '@/utils/app/folders';
 import { exportData, importData } from '@/utils/app/importExport';
 import { savePrompts } from '@/utils/app/prompts';
@@ -36,9 +37,16 @@ import { useTranslation } from 'next-i18next';
 import { serverSideTranslations } from 'next-i18next/serverSideTranslations';
 import Head from 'next/head';
 import { useEffect, useRef, useState } from 'react';
-// import toast from 'react-hot-toast';
+import toast from 'react-hot-toast';
 import { v4 as uuidv4 } from 'uuid';
-// import { setMaxIdleHTTPParsers } from 'http';
+import {
+  SignedIn,
+  SignedOut,
+  SignInButton,
+  UserButton,
+  useUser,
+} from '@clerk/clerk-react';
+import axios from 'axios';
 
 interface HomeProps {
   serverSideApiKeyIsSet: boolean;
@@ -67,6 +75,8 @@ const Home: React.FC<HomeProps> = ({
 
   const [folders, setFolders] = useState<Folder[]>([]);
 
+  const [currentDocuments, setCurrentDocuments] = useState<APIDocument[]>([]);
+
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] =
     useState<Conversation>();
@@ -76,6 +86,8 @@ const Home: React.FC<HomeProps> = ({
 
   const [prompts, setPrompts] = useState<Prompt[]>([]);
   const [showPromptbar, setShowPromptbar] = useState<boolean>(true);
+  const { user, isLoaded } = useUser();
+  const [userId, setUserId] = useState('unknown_user');
 
   // REFS ----------------------------------------------
 
@@ -112,311 +124,134 @@ const Home: React.FC<HomeProps> = ({
       setLoading(true);
       setMessageIsStreaming(true);
 
-      const chatBody: ChatBody = {
-        model: updatedConversation.model,
-        messages: updatedConversation.messages,
-        key: apiKey,
-        prompt: updatedConversation.prompt,
-      };
+      let documents: APIDocument[] = [];
+      const eventSource = new EventSource(
+        `${window.location.protocol}//${window.location.host}/api/v1/rag?user_id=${userId}&query=${message.content}`,
+      );
 
-      const endpoint = getEndpoint(plugin);
-      let body;
+      eventSource.addEventListener('error', function (event) {
+        setLoading(false);
+        setMessageIsStreaming(false);
+        toast.error('Cannot connect to backend');
+      });
 
-      if (!plugin) {
-        body = JSON.stringify(chatBody);
-      } else {
-        body = JSON.stringify({
-          ...chatBody,
-          googleAPIKey: pluginKeys
-            .find((key) => key.pluginId === 'google-search')
-            ?.requiredKeys.find((key) => key.key === 'GOOGLE_API_KEY')?.value,
-          googleCSEId: pluginKeys
-            .find((key) => key.pluginId === 'google-search')
-            ?.requiredKeys.find((key) => key.key === 'GOOGLE_CSE_ID')?.value,
-        });
-      }
-
-      const controller = new AbortController();
-
-      // handle self managed backend
-      // debugger;
-      let mybody = JSON.stringify({
-        query: chatBody.messages[chatBody.messages.length - 1].content
-      })
-
-      // websocket to stream response
-      let protocol = 'ws';
-      protocol += window.location.protocol.includes('s') ? 's' : '';
-      const socket = new WebSocket(`${protocol}://${window.location.hostname}/api/stream`);
-      let partial = '';
-
-      socket.onopen = () => {
-        console.log('WebSocket connection established.');
-        // Send data after the connection is open, if needed
-        socket.send(mybody);
-
-        const myUpdatedMessages: Message[] = [
+      eventSource.addEventListener('on_chat_model_start', function (event) {
+        const updatedMessages: Message[] = [
           ...updatedConversation.messages,
-          { role: 'assistant', content: JSON.parse(mybody).query },
+          { role: 'assistant', content: event.data },
         ];
 
         updatedConversation = {
           ...updatedConversation,
-          messages: myUpdatedMessages,
-        };
-
-        // setSelectedConversation(updatedConversation);
-        // saveConversation(updatedConversation);
-      };
-
-      socket.onmessage = (event) => {
-        setLoading(false);
-        // Handle incoming messages from the server
-        const eventData = JSON.parse(event.data);
-
-        if (eventData.status == "end") {
-          socket.close();
-        }
-
-        if (typeof eventData.data === "string") {
-          partial += eventData.data;
-        }
-
-        const myUpdatedMessages: Message[] = updatedConversation.messages.map(
-          (message, index) => {
-            if (index === updatedConversation.messages.length - 1) {
-              return {
-                ...message,
-                content: partial.trim(),
-              };
-            }
-
-            return message;
-          },
-        );
-
-        updatedConversation = {
-          ...updatedConversation,
-          messages: myUpdatedMessages,
+          messages: updatedMessages,
         };
 
         setSelectedConversation(updatedConversation);
-        saveConversation(updatedConversation);
-      };
-
-      socket.onclose = () => {
-        console.log('WebSocket connection closed.');
-      };
-
-      socket.onerror = (error) => {
-        console.error('WebSocket error:', error);
-      };
-
-      // const response = await fetch('/api/complete', {
-      //   method: 'POST',
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //   },
-      //   signal: controller.signal,
-      //   body: mybody
-      // });
-
-      // if (!response.ok) {
-      //   setLoading(false);
-      //   setMessageIsStreaming(false);
-      //   toast.error(response.statusText);
-      //   return;
-      // }
-
-      // const data = response.body;
-
-      // if (!data) {
-      //   setLoading(false);
-      //   setMessageIsStreaming(false);
-      //   return;
-      // }
-
-      // if (!plugin) {
-      //   if (updatedConversation.messages.length === 1) {
-      //     const { content } = message;
-      //     const customName =
-      //       content.length > 30 ? content.substring(0, 30) + '...' : content;
-
-      //     updatedConversation = {
-      //       ...updatedConversation,
-      //       name: customName,
-      //     };
-      //   }
-      if (true) {
-
-        // const reader = data.getReader();
-        // const decoder = new TextDecoder();
-        // let done = false;
-        // let isFirst = true;
-        // let text = '';
-
-        // while (!done) {
-        //   if (stopConversationRef.current === true) {
-        //     controller.abort();
-        //     done = true;
-        //     break;
-        //   }
-        //   const { value, done: doneReading } = await reader.read();
-        //   done = doneReading;
-        //   const chunkValue = decoder.decode(value);
-
-        //   // handle self managed backend
-        //   // debugger;
-        //   let parsedChunk
-        //   try {
-        //     parsedChunk = JSON.parse(chunkValue);
-        //   } catch (error) {
-        //     console.error("Error parsing JSON:", error, chunkValue);
-        //     parsedChunk = {};
-        //   }
-        //   if (parsedChunk.completion){
-        //     text += parsedChunk.completion
-        //   };
-
-        //   if (isFirst) {
-        //     isFirst = false;
-        //     const updatedMessages: Message[] = [
-        //       ...updatedConversation.messages,
-        //       { role: 'assistant', content: chunkValue },
-        //     ];
-
-        //     updatedConversation = {
-        //       ...updatedConversation,
-        //       messages: updatedMessages,
-        //     };
-
-        //     setSelectedConversation(updatedConversation);
-        //   } else {
-        //     const updatedMessages: Message[] = updatedConversation.messages.map(
-        //       (message, index) => {
-        //         if (index === updatedConversation.messages.length - 1) {
-        //           return {
-        //             ...message,
-        //             content: text,
-        //           };
-        //         }
-
-        //         return message;
-        //       },
-        //     );
-
-        //     updatedConversation = {
-        //       ...updatedConversation,
-        //       messages: updatedMessages,
-        //     };
-
-        //     setSelectedConversation(updatedConversation);
-        //   }
-        // }
-
-        // saveConversation(updatedConversation);
-
-        const updatedConversations: Conversation[] = conversations.map(
-          (conversation) => {
-            if (conversation.id === selectedConversation.id) {
-              return updatedConversation;
-            }
-
-            return conversation;
-          },
-        );
-
-        if (updatedConversations.length === 0) {
-          updatedConversations.push(updatedConversation);
-        }
-
-        setConversations(updatedConversations);
-        saveConversations(updatedConversations);
-
-        setMessageIsStreaming(false);
-      } else {
-        // const { answer } = await response.json();
-
-        // const updatedMessages: Message[] = [
-        //   ...updatedConversation.messages,
-        //   { role: 'assistant', content: answer },
-        // ];
-
-        // updatedConversation = {
-        //   ...updatedConversation,
-        //   messages: updatedMessages,
-        // };
-
-        // setSelectedConversation(updatedConversation);
-        // saveConversation(updatedConversation);
-
-        // const updatedConversations: Conversation[] = conversations.map(
-        //   (conversation) => {
-        //     if (conversation.id === selectedConversation.id) {
-        //       return updatedConversation;
-        //     }
-
-        //     return conversation;
-        //   },
-        // );
-
-        // if (updatedConversations.length === 0) {
-        //   updatedConversations.push(updatedConversation);
-        // }
-
-        // setConversations(updatedConversations);
-        // saveConversations(updatedConversations);
-
         setLoading(false);
+      });
+
+      eventSource.addEventListener('on_chat_model_stream', function (event) {
+        if (stopConversationRef.current) {
+          setMessageIsStreaming(false);
+          eventSource.close();
+        } else {
+          const updatedMessages: Message[] = updatedConversation.messages.map(
+            (message, index) => {
+              if (index === updatedConversation.messages.length - 1) {
+                return {
+                  ...message,
+                  content: message.content + event.data,
+                };
+              }
+
+              return message;
+            },
+          );
+
+          updatedConversation = {
+            ...updatedConversation,
+            messages: updatedMessages,
+          };
+
+          setSelectedConversation(updatedConversation);
+        }
+      });
+
+      eventSource.addEventListener('on_retriever_end', function (event) {
+        const jsonString = event.data.replace(/'([^']+)'/g, '"$1"');
+        try {
+          documents = JSON.parse(jsonString);
+        } catch {}
+        updatedConversation = {
+          ...updatedConversation,
+          documents: updatedConversation.documents
+            ? [...updatedConversation.documents, documents]
+            : [documents],
+        };
+        setSelectedConversation(updatedConversation);
+        setCurrentDocuments(documents);
+      });
+
+      eventSource.addEventListener('on_chat_model_end', function (event) {
         setMessageIsStreaming(false);
+        eventSource.close();
+
+        const user_query =
+          updatedConversation.messages
+            .filter((message) => message.role === 'user')
+            .reverse()
+            .find((message) => true)?.content || '';
+        const headers = {
+          'Content-Type': 'application/json',
+        };
+        const insertPayload: APIInsertPayload = {
+          user_id: userId,
+          user_query: user_query,
+          completion: event.data,
+          documents: JSON.stringify(documents),
+        };
+        axios
+          .post(
+            `${window.location.protocol}//${window.location.host}/api/v1/database/chat-history`,
+            insertPayload,
+            { headers },
+          )
+          .catch((error) =>
+            toast.error(
+              'Cannot insert history into backend:\n'.concat(error.message),
+            ),
+          );
+      });
+
+      updatedConversation.documents = [
+        ...(updatedConversation.documents || []),
+        currentDocuments,
+      ];
+
+      const updatedConversations: Conversation[] = conversations.map(
+        (conversation) => {
+          if (conversation.id === selectedConversation.id) {
+            return updatedConversation;
+          }
+
+          return conversation;
+        },
+      );
+
+      if (updatedConversations.length === 0) {
+        updatedConversations.push(updatedConversation);
       }
+
+      setConversations(updatedConversations);
+    } else {
+      setLoading(false);
+      setMessageIsStreaming(false);
     }
   };
 
   // FETCH MODELS ----------------------------------------------
 
   const fetchModels = async (key: string) => {
-    const error = {
-      title: t('Error fetching models.'),
-      code: null,
-      messageLines: [
-        t(
-          'Make sure your OpenAI API key is set in the bottom left of the sidebar.',
-        ),
-        t('If you completed this step, OpenAI may be experiencing issues.'),
-      ],
-    } as ErrorMessage;
-
-    const response = await fetch('/api/models', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        key,
-      }),
-    });
-
-    // if (!response.ok) {
-    //   try {
-    //     const data = await response.json();
-    //     Object.assign(error, {
-    //       code: data.error?.code,
-    //       messageLines: [data.error?.message],
-    //     });
-    //   } catch (e) {}
-    //   setModelError(error);
-    //   return;
-    // }
-
-    // const data = await response.json();
-
-    // if (!data) {
-    //   setModelError(error);
-    //   return;
-    // }
-
-    // setModels(data);
     setModelError(null);
   };
 
@@ -482,7 +317,7 @@ const Home: React.FC<HomeProps> = ({
   };
 
   const handleExportData = () => {
-    exportData();
+    exportData(userId);
   };
 
   const handleImportConversations = (data: SupportedExportFormats) => {
@@ -496,7 +331,6 @@ const Home: React.FC<HomeProps> = ({
 
   const handleSelectConversation = (conversation: Conversation) => {
     setSelectedConversation(conversation);
-    saveConversation(conversation);
   };
 
   // FOLDER OPERATIONS  --------------------------------------------
@@ -530,7 +364,6 @@ const Home: React.FC<HomeProps> = ({
       return c;
     });
     setConversations(updatedConversations);
-    saveConversations(updatedConversations);
 
     const updatedPrompts: Prompt[] = prompts.map((p) => {
       if (p.folderId === folderId) {
@@ -586,9 +419,6 @@ const Home: React.FC<HomeProps> = ({
     setSelectedConversation(newConversation);
     setConversations(updatedConversations);
 
-    saveConversation(newConversation);
-    saveConversations(updatedConversations);
-
     setLoading(false);
   };
 
@@ -597,13 +427,11 @@ const Home: React.FC<HomeProps> = ({
       (c) => c.id !== conversation.id,
     );
     setConversations(updatedConversations);
-    saveConversations(updatedConversations);
 
     if (updatedConversations.length > 0) {
       setSelectedConversation(
         updatedConversations[updatedConversations.length - 1],
       );
-      saveConversation(updatedConversations[updatedConversations.length - 1]);
     } else {
       setSelectedConversation({
         id: uuidv4(),
@@ -636,6 +464,14 @@ const Home: React.FC<HomeProps> = ({
   };
 
   const handleClearConversations = () => {
+    axios
+      .delete(
+        `${window.location.protocol}//${window.location.host}/api/v1/database/chat-history/${userId}`,
+      )
+      .then(() => toast.success('Deleted history!'))
+      .catch((error) =>
+        toast.error('Cannot delete history:\n'.concat(error.message)),
+      );
     setConversations([]);
     localStorage.removeItem('conversationHistory');
 
@@ -721,6 +557,43 @@ const Home: React.FC<HomeProps> = ({
   // EFFECTS  --------------------------------------------
 
   useEffect(() => {
+    if (userId === 'unknown_user' && isLoaded && user) {
+      setUserId(user.id);
+      let messages: Message[] = [];
+      let documents: APIDocument[][] = [];
+
+      axios
+        .get(
+          `${window.location.protocol}//${window.location.host}/api/v1/database/chat-history?user_id=${user?.id}`,
+        )
+        .then((response) => {
+          const conversationHistory: APIHistory[] = response.data;
+          conversationHistory.map((history) => {
+            messages = [
+              ...messages,
+              { role: 'user', content: history.user_query },
+              { role: 'assistant', content: history.completion },
+            ];
+            // NOTE filler as this is citation/reference is meant to map to user_query
+            documents = [...documents, [], history.documents];
+          });
+          setSelectedConversation({
+            id: uuidv4(),
+            name: 'New conversation',
+            messages: messages,
+            documents: documents,
+            model: OpenAIModels[defaultModelId],
+            prompt: DEFAULT_SYSTEM_PROMPT,
+            folderId: null,
+          });
+        })
+        .catch((error) =>
+          toast.error('Cannot fetch chat history:\n'.concat(error.message)),
+        );
+    }
+  }, [userId, isLoaded, user, defaultModelId]);
+
+  useEffect(() => {
     if (currentMessage) {
       handleSend(currentMessage);
       setCurrentMessage(undefined);
@@ -788,36 +661,7 @@ const Home: React.FC<HomeProps> = ({
     if (prompts) {
       setPrompts(JSON.parse(prompts));
     }
-
-    const conversationHistory = localStorage.getItem('conversationHistory');
-    if (conversationHistory) {
-      const parsedConversationHistory: Conversation[] =
-        JSON.parse(conversationHistory);
-      const cleanedConversationHistory = cleanConversationHistory(
-        parsedConversationHistory,
-      );
-      setConversations(cleanedConversationHistory);
-    }
-
-    const selectedConversation = localStorage.getItem('selectedConversation');
-    if (selectedConversation) {
-      const parsedSelectedConversation: Conversation =
-        JSON.parse(selectedConversation);
-      const cleanedSelectedConversation = cleanSelectedConversation(
-        parsedSelectedConversation,
-      );
-      setSelectedConversation(cleanedSelectedConversation);
-    } else {
-      setSelectedConversation({
-        id: uuidv4(),
-        name: 'New conversation',
-        messages: [],
-        model: OpenAIModels[defaultModelId],
-        prompt: DEFAULT_SYSTEM_PROMPT,
-        folderId: null,
-      });
-    }
-  }, [serverSideApiKeyIsSet]);
+  }, [serverSideApiKeyIsSet, serverSidePluginKeysSet]);
 
   return (
     <>
@@ -830,84 +674,100 @@ const Home: React.FC<HomeProps> = ({
         />
         <link rel="icon" href="/favicon.ico" />
       </Head>
-      {selectedConversation && (
-        <main
-          className={`flex h-screen w-screen flex-col text-sm text-white dark:text-white ${lightMode}`}
-        >
-          <div className="fixed top-0 w-full sm:hidden">
-            <Navbar
-              selectedConversation={selectedConversation}
-              onNewConversation={handleNewConversation}
-            />
+
+      <SignedOut>
+        <div className="sign-in-parent">
+          <div className="sign-in-div">
+            <SignInButton>
+              <button className="sign-in-button">Sign in</button>
+            </SignInButton>
           </div>
+        </div>
+      </SignedOut>
 
-          <div className="flex h-full w-full pt-[48px] sm:pt-0">
-            {showSidebar ? (
-              <div>
-                <Chatbar
-                  loading={messageIsStreaming}
-                  conversations={conversations}
-                  lightMode={lightMode}
-                  selectedConversation={selectedConversation}
-                  apiKey={apiKey}
-                  pluginKeys={pluginKeys}
-                  folders={folders.filter((folder) => folder.type === 'chat')}
-                  onToggleLightMode={handleLightMode}
-                  onCreateFolder={(name) => handleCreateFolder(name, 'chat')}
-                  onDeleteFolder={handleDeleteFolder}
-                  onUpdateFolder={handleUpdateFolder}
-                  onNewConversation={handleNewConversation}
-                  onSelectConversation={handleSelectConversation}
-                  onDeleteConversation={handleDeleteConversation}
-                  onUpdateConversation={handleUpdateConversation}
-                  onApiKeyChange={handleApiKeyChange}
-                  onClearConversations={handleClearConversations}
-                  onExportConversations={handleExportData}
-                  onImportConversations={handleImportConversations}
-                  onPluginKeyChange={handlePluginKeyChange}
-                  onClearPluginKey={handleClearPluginKey}
-                />
-
-                <button
-                  className="fixed top-5 left-[270px] z-50 h-7 w-7 hover:text-gray-400 dark:text-white dark:hover:text-gray-300 sm:top-0.5 sm:left-[270px] sm:h-8 sm:w-8 sm:text-neutral-700"
-                  onClick={handleToggleChatbar}
-                >
-                  <IconArrowBarLeft />
-                </button>
-                <div
-                  onClick={handleToggleChatbar}
-                  className="absolute top-0 left-0 z-10 h-full w-full bg-black opacity-70 sm:hidden"
-                ></div>
-              </div>
-            ) : (
-              <button
-                className="fixed top-2.5 left-4 z-50 h-7 w-7 text-white hover:text-gray-400 dark:text-white dark:hover:text-gray-300 sm:top-0.5 sm:left-4 sm:h-8 sm:w-8 sm:text-neutral-700"
-                onClick={handleToggleChatbar}
-              >
-                <IconArrowBarRight />
-              </button>
-            )}
-
-            <div className="flex flex-1">
-              <Chat
-                conversation={selectedConversation}
-                messageIsStreaming={messageIsStreaming}
-                apiKey={apiKey}
-                serverSideApiKeyIsSet={serverSideApiKeyIsSet}
-                defaultModelId={defaultModelId}
-                modelError={modelError}
-                models={models}
-                loading={loading}
-                prompts={prompts}
-                onSend={handleSend}
-                onUpdateConversation={handleUpdateConversation}
-                onEditMessage={handleEditMessage}
-                stopConversationRef={stopConversationRef}
+      <SignedIn>
+        <div className="fixed top-2 right-4 z-50 h-7 w-7 sm:top-1 sm:right-4 sm:h-8 sm:w-8 sm:text-neutral-700">
+          <UserButton />
+        </div>
+        {selectedConversation && (
+          <main
+            className={`flex h-screen w-screen flex-col text-sm text-white dark:text-white ${lightMode}`}
+          >
+            <div className="fixed top-0 w-full sm:hidden">
+              <Navbar
+                selectedConversation={selectedConversation}
+                onNewConversation={handleNewConversation}
               />
             </div>
-          </div>
-        </main>
-      )}
+
+            <div className="flex h-full w-full pt-[48px] sm:pt-0">
+              {showSidebar ? (
+                <div>
+                  <Chatbar
+                    loading={messageIsStreaming}
+                    conversations={conversations}
+                    lightMode={lightMode}
+                    selectedConversation={selectedConversation}
+                    apiKey={apiKey}
+                    pluginKeys={pluginKeys}
+                    folders={folders.filter((folder) => folder.type === 'chat')}
+                    onToggleLightMode={handleLightMode}
+                    onCreateFolder={(name) => handleCreateFolder(name, 'chat')}
+                    onDeleteFolder={handleDeleteFolder}
+                    onUpdateFolder={handleUpdateFolder}
+                    onNewConversation={handleNewConversation}
+                    onSelectConversation={handleSelectConversation}
+                    onDeleteConversation={handleDeleteConversation}
+                    onUpdateConversation={handleUpdateConversation}
+                    onApiKeyChange={handleApiKeyChange}
+                    onClearConversations={handleClearConversations}
+                    onExportConversations={handleExportData}
+                    onImportConversations={handleImportConversations}
+                    onPluginKeyChange={handlePluginKeyChange}
+                    onClearPluginKey={handleClearPluginKey}
+                  />
+
+                  <button
+                    className="fixed top-5 left-[270px] z-50 h-7 w-7 hover:text-gray-400 dark:text-white dark:hover:text-gray-300 sm:top-0.5 sm:left-[270px] sm:h-8 sm:w-8 sm:text-neutral-700"
+                    onClick={handleToggleChatbar}
+                  >
+                    <IconArrowBarLeft />
+                  </button>
+                  <div
+                    onClick={handleToggleChatbar}
+                    className="absolute top-0 left-0 z-10 h-full w-full bg-black opacity-70 sm:hidden"
+                  ></div>
+                </div>
+              ) : (
+                <button
+                  className="fixed top-2.5 left-4 z-50 h-7 w-7 text-white hover:text-gray-400 dark:text-white dark:hover:text-gray-300 sm:top-0.5 sm:left-4 sm:h-8 sm:w-8 sm:text-neutral-700"
+                  onClick={handleToggleChatbar}
+                >
+                  <IconArrowBarRight />
+                </button>
+              )}
+
+              <div className="flex flex-1">
+                <Chat
+                  conversation={selectedConversation}
+                  messageIsStreaming={messageIsStreaming}
+                  apiKey={apiKey}
+                  serverSideApiKeyIsSet={serverSideApiKeyIsSet}
+                  defaultModelId={defaultModelId}
+                  modelError={modelError}
+                  models={models}
+                  loading={loading}
+                  prompts={prompts}
+                  onSend={handleSend}
+                  onUpdateConversation={handleUpdateConversation}
+                  onEditMessage={handleEditMessage}
+                  stopConversationRef={stopConversationRef}
+                />
+              </div>
+            </div>
+          </main>
+        )}
+      </SignedIn>
     </>
   );
 };
