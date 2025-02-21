@@ -15,6 +15,7 @@ if (!PUBLISHABLE_KEY) {
 function App({ Component, pageProps }: AppProps<{}>) {
   return (
     <div className={inter.className}>
+      <h1 className="text-4xl text-white">hi</h1>
       <ClerkProvider publishableKey={PUBLISHABLE_KEY} afterSignOutUrl="/ui">
         <Toaster position="top-right" />
         <Component {...pageProps} />
