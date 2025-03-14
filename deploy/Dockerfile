@@ -15,5 +15,6 @@ COPY --from=dev /app/public ./public
 COPY --from=dev /app/package*.json ./
 COPY --from=dev /app/next.config.js ./next.config.js
 COPY --from=dev /app/next-i18next.config.js ./next-i18next.config.js
+COPY --from=dev /app/.env.local ./.env.local
 RUN apk add curl
 CMD ["npm", "start"]
