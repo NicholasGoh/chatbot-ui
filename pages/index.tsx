@@ -673,6 +673,11 @@ const Home: React.FC<HomeProps> = ({
           content="height=device-height ,width=device-width, initial-scale=1, user-scalable=no"
         />
         <link rel="icon" href="/favicon.ico" />
+        <script
+          defer
+          src="https://cloud.umami.is/script.js"
+          data-website-id="00eadbae-add3-453e-aa6c-dde12cc2e23a"
+        ></script>
       </Head>
 
       <SignedOut>
