@@ -1,6 +1,7 @@
 FROM node:19-alpine AS dev
 RUN apk add curl
 WORKDIR /app
+ENV VITE_CLERK_PUBLISHABLE_KEY=pk_test_c2VjdXJlLWphY2thbC03MS5jbGVyay5hY2NvdW50cy5kZXYk
 COPY package*.json ./
 RUN npm ci
 COPY ./ ./
