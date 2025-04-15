@@ -11,8 +11,8 @@ export default defineConfig({
   plugins: [
     VitePluginRadar({
       // Google Analytics tag injection
-      // TODO: https://github.com/stafyniaksacha/vite-plugin-radar/blob/v0.10.0/README.md?plain=1#L90
-      // might need custom events for more analysis
+      // NOTE: https://github.com/stafyniaksacha/vite-plugin-radar/blob/v0.10.0/README.md?plain=1#L90
+      // will not add custom events for more analysis for now
       analytics: {
         id: 'G-TECW05ZKH4',
       },

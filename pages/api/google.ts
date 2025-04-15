@@ -64,7 +64,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse<any>) => {
 
             return {
               ...source,
-              // TODO: switch to tokens
+              // NOTE: ignore this switch to tokens
               text: sourceText.slice(0, 2000),
             } as GoogleSource;
           }
